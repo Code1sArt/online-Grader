@@ -116,7 +116,10 @@ export function Layout() {
           <span>NR Grader</span>
           <ChevronRight size={14} />
           <strong>{page}</strong>
-          <span className="topbar-right">ฝึกทีละโจทย์ เก่งขึ้นทุกวัน</span>
+          <span className="topbar-camp">
+            <img src="/posn-logo.webp" alt="ตราสัญลักษณ์ สอวน." />
+            <span>ค่ายโอลิมปิกวิชาการ สอวน. ค่าย 1 วิชาคอมพิวเตอร์ โรงเรียนนางรอง</span>
+          </span>
         </header>
         <main id="main-content">
           <Outlet />
