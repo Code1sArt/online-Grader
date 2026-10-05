@@ -107,4 +107,13 @@ CodeMirror และหน้า Admin แยกโหลดเมื่อเ�
 
 Google Sign-In ที่ไม่ได้ใช้ FedCM ต้องให้หน้า **frontend** ส่ง `Cross-Origin-Opener-Policy: same-origin-allow-popups` เพื่อให้ popup ส่งผลกลับได้ ซึ่งตั้งไว้แล้วสำหรับ Vite development/preview ข้างต้น ส่วน production ต้องตั้งใน reverse proxy/static host ตามตัวอย่าง Nginx ไม่ต้องลดค่า COOP ของ API เพียงเพราะใช้ Google Login
 
+Repository นี้มี GitHub Actions ที่ `.github/workflows/deploy-plesk.yml` สำหรับ production deployment เมื่อ push เข้า `main` โดย workflow จะรัน unit tests, build ด้วย Node.js 22 และ sync เฉพาะ `dist/` ไปยัง Plesk ผ่าน SSH การ deploy จะเก็บ `.well-known/` และ `.plesk-stat/` ที่มีอยู่บน server ไว้
+
+ค่าที่ workflow ใช้ใน GitHub Actions:
+
+- Secret: `PLESK_SSH_PRIVATE_KEY`
+- Variables: `PLESK_HOST`, `PLESK_PORT`, `PLESK_USERNAME`, `PLESK_DOCUMENT_ROOT`, `PLESK_SSH_KNOWN_HOSTS`, `VITE_API_URL`, `VITE_GOOGLE_CLIENT_ID`
+
+ไฟล์ `public/.htaccess` จะถูกรวมใน `dist/` เพื่อรองรับ React Router และ response headers ที่ Google Sign-In ต้องใช้ ส่วน `/api` ต้องตั้ง reverse proxy ไปยัง backend ใน Plesk แยกต่างหาก
+
 ตรวจเฉพาะการแสดงปุ่ม Google บน dev server โดยไม่เข้าสู่ระบบได้ด้วย `node scripts/check-google-button.mjs` หาก popup ถูกบล็อก ให้ตรวจ COOP/CSP ตาม [ข้อกำหนดของ Google](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid#cross_origin_opener_policy)

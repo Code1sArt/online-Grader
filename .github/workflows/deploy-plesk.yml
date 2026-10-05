@@ -1,0 +1,90 @@
+name: CI/CD to Plesk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plesk-production
+  cancel-in-progress: false
+
+jobs:
+  test-build-deploy:
+    name: Test, build, and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+      PLESK_HOST: ${{ vars.PLESK_HOST }}
+      PLESK_PORT: ${{ vars.PLESK_PORT }}
+      PLESK_USERNAME: ${{ vars.PLESK_USERNAME }}
+      PLESK_DOCUMENT_ROOT: ${{ vars.PLESK_DOCUMENT_ROOT }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production site
+        run: npm run build
+
+      - name: Configure SSH
+        env:
+          PLESK_SSH_PRIVATE_KEY: ${{ secrets.PLESK_SSH_PRIVATE_KEY }}
+          PLESK_SSH_KNOWN_HOSTS: ${{ vars.PLESK_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$PLESK_SSH_PRIVATE_KEY"
+          test -n "$PLESK_SSH_KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PLESK_SSH_PRIVATE_KEY" > ~/.ssh/plesk_deploy
+          printf '%s\n' "$PLESK_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/plesk_deploy ~/.ssh/known_hosts
+
+      - name: Check deployment target
+        run: |
+          test -n "$PLESK_HOST"
+          test -n "$PLESK_PORT"
+          test -n "$PLESK_USERNAME"
+          case "$PLESK_DOCUMENT_ROOT" in
+            /var/www/vhosts/*/httpdocs) ;;
+            *) echo "Unexpected Plesk document root" >&2; exit 1 ;;
+          esac
+          ssh -i ~/.ssh/plesk_deploy \
+            -p "$PLESK_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$PLESK_USERNAME@$PLESK_HOST" \
+            "test -d '$PLESK_DOCUMENT_ROOT' && test -w '$PLESK_DOCUMENT_ROOT'"
+
+      - name: Deploy dist to Plesk
+        run: |
+          rsync \
+            --recursive \
+            --links \
+            --times \
+            --compress \
+            --delete-delay \
+            --delay-updates \
+            --itemize-changes \
+            --chmod=D755,F644 \
+            --exclude='.well-known/' \
+            --exclude='.plesk-stat/' \
+            -e "ssh -i ~/.ssh/plesk_deploy -p $PLESK_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            dist/ \
+            "$PLESK_USERNAME@$PLESK_HOST:$PLESK_DOCUMENT_ROOT/"

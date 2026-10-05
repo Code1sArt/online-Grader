@@ -1,0 +1,19 @@
+Options -MultiViews
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Let the Plesk reverse proxy or API service handle backend requests.
+  RewriteRule ^api(?:/|$) - [L]
+
+  # Serve real files and directories as-is; route client-side URLs to React.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
