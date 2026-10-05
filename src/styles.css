@@ -902,6 +902,30 @@ td .mono {
 .login-story .brand {
   font-size: 27px;
 }
+.login-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+.login-camp {
+  max-width: 325px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  color: #c4d8d1;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.55;
+  text-align: right;
+}
+.login-camp img {
+  width: 38px;
+  height: 53px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
 .story-content {
   max-width: 490px;
   width: 100%;
@@ -2223,6 +2247,20 @@ legend {
   .login-story .brand-icon {
     width: 38px;
     height: 38px;
+  }
+  .login-brand-row {
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .login-camp {
+    max-width: 185px;
+    gap: 7px;
+    font-size: 8px;
+    line-height: 1.45;
+  }
+  .login-camp img {
+    width: 28px;
+    height: 40px;
   }
   .story-content {
     padding: 28px 0 0;

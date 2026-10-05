@@ -41,7 +41,13 @@ export function Login() {
   return (
     <div className="login-page">
       <section className="login-story">
-        <Brand />
+        <div className="login-brand-row">
+          <Brand />
+          <div className="login-camp">
+            <img src="/posn-logo.webp" alt="ตราสัญลักษณ์ สอวน." />
+            <span>ค่ายโอลิมปิกวิชาการ สอวน. ค่าย 1 วิชาคอมพิวเตอร์ โรงเรียนนางรอง</span>
+          </div>
+        </div>
         <div className="story-content">
           <div className="eyebrow">YOUR NEXT LINE STARTS HERE</div>
           <h1>
