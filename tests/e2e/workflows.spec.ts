@@ -25,15 +25,27 @@ async function mockApi(page: Page, admin = false) {
                   ? submission
                   : path === '/api/competitions'
                     ? [competition]
-                    : path === '/api/competitions/c1/join'
-                      ? ((joined = true), {})
-                      : path === '/api/competitions/c1'
-                        ? { ...competition, joined }
-                        : path === '/api/competitions/c1/leaderboard'
-                          ? { entries: [] }
-                          : path === '/api/problems/p1/test-cases'
-                            ? {}
-                            : undefined;
+                    : path === '/api/settings'
+                      ? { playgroundEnabled: true, updatedAt: null }
+                      : path === '/api/playground/run'
+                        ? {
+                            status: 'ACCEPTED',
+                            stdout: 'hello\n',
+                            stderr: '',
+                            compilerOutput: '',
+                            message: '',
+                            executionTimeMs: 8,
+                            memoryUsedKb: 1024,
+                          }
+                        : path === '/api/competitions/c1/join'
+                          ? ((joined = true), {})
+                          : path === '/api/competitions/c1'
+                            ? { ...competition, joined }
+                            : path === '/api/competitions/c1/leaderboard'
+                              ? { entries: [] }
+                              : path === '/api/problems/p1/test-cases'
+                                ? {}
+                                : undefined;
     if (data === undefined) {
       await route.fulfill({ status: 404, json: { message: `Unexpected fixture endpoint ${path}` } });
       return;
@@ -112,6 +124,26 @@ test('competition join and responsive mobile navigation', async ({ page }, info)
     await page.getByRole('button', { name: 'เปิดเมนู', exact: true }).click();
   await page.getByRole('link', { name: 'การส่งคำตอบ', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'การส่งคำตอบ', exact: true })).toBeVisible();
+});
+
+test('playground runs code with custom stdin', async ({ page }, info) => {
+  await mockApi(page);
+  await page.goto('/playground');
+  await expect(page.getByRole('heading', { name: 'Playground', exact: true })).toBeVisible();
+  await page.locator('.cm-content').fill('print(input())');
+  await page.getByLabel('ข้อมูลนำเข้า Playground').fill('hello');
+  const request = page.waitForRequest(
+    (item) => new URL(item.url()).pathname === '/api/playground/run' && item.method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'รัน Python', exact: true }).click();
+  expect((await request).postDataJSON()).toEqual({
+    language: 'PYTHON',
+    sourceCode: 'print(input())',
+    stdin: 'hello',
+  });
+  await expect(page.getByText('hello', { exact: true })).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/playground-${info.project.name}.png`, fullPage: true });
 });
 
 test('admin creates a problem and opens its testcase editor', async ({ page }) => {

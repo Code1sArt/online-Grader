@@ -1,4 +1,16 @@
-import { BookOpen, CodeXml, History, LogOut, Menu, Settings2, Trophy, X, ChevronRight } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronRight,
+  CodeXml,
+  History,
+  LogOut,
+  Menu,
+  Settings2,
+  SlidersHorizontal,
+  SquareTerminal,
+  Trophy,
+  X,
+} from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../auth';
@@ -24,6 +36,7 @@ export function Layout() {
     { to: '/problems', label: 'คลังโจทย์', icon: BookOpen },
     { to: '/submissions', label: 'การส่งคำตอบ', icon: History },
     { to: '/competitions', label: 'การแข่งขัน', icon: Trophy },
+    { to: '/playground', label: 'Playground', icon: SquareTerminal },
   ];
   const page = location.pathname.startsWith('/admin')
     ? 'ผู้ดูแลระบบ'
@@ -56,6 +69,10 @@ export function Layout() {
               <NavLink to="/admin/competitions" onClick={() => setOpen(false)}>
                 <Trophy size={20} />
                 จัดการแข่งขัน
+              </NavLink>
+              <NavLink to="/admin/settings" onClick={() => setOpen(false)}>
+                <SlidersHorizontal size={20} />
+                ตั้งค่าระบบ
               </NavLink>
             </>
           )}

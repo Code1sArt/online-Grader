@@ -11,6 +11,19 @@ export interface Session {
   accessToken: string;
   user: User;
 }
+export interface SystemSettings {
+  playgroundEnabled: boolean;
+  updatedAt: string | null;
+}
+export interface PlaygroundRunResult {
+  status: Verdict;
+  stdout: string;
+  stderr: string;
+  compilerOutput: string;
+  message: string;
+  executionTimeMs: number | null;
+  memoryUsedKb: number | null;
+}
 export interface TestCase {
   id: string;
   name: string;

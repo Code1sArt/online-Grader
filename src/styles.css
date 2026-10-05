@@ -1597,6 +1597,219 @@ legend {
   overflow: hidden;
   white-space: nowrap;
 }
+.playground-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.45fr);
+  gap: 23px;
+  align-items: start;
+}
+.playground-editor-panel {
+  overflow: hidden;
+}
+.playground-io {
+  padding: 20px;
+  border-top: 1px solid var(--line);
+}
+.playground-io label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.playground-io label > span {
+  color: #49624f;
+  font-size: 12px;
+  font-weight: 500;
+}
+.playground-io label > small {
+  color: #889b8b;
+  font-size: 9px;
+  text-align: right;
+}
+.playground-io textarea {
+  background: #f9fbfa;
+  font-family: 'IBM Plex Mono', Consolas, monospace;
+  font-size: 12px;
+}
+.playground-run {
+  margin-top: 16px;
+  min-width: 150px;
+}
+.playground-result {
+  border-top: 1px solid var(--line);
+}
+.playground-result-head {
+  padding: 16px 20px;
+  background: #f8faf9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.playground-result-head > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.playground-result-head > div > span:first-child {
+  color: #50685b;
+  font-weight: 500;
+}
+.playground-metrics span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #788a80;
+  font-size: 10px;
+}
+.playground-output {
+  padding: 20px;
+  border-top: 1px solid var(--line);
+}
+.playground-output h3 {
+  color: #567064;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+.playground-output pre {
+  min-height: 70px;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  border-radius: 8px;
+  background: #172229;
+  color: #d7e7df;
+}
+.playground-output.diagnostic pre {
+  background: #2b2021;
+  color: #ffd7d2;
+}
+.playground-guide {
+  position: sticky;
+  top: 20px;
+}
+.playground-guide-body {
+  padding: 22px;
+}
+.playground-guide-body > p {
+  color: #6f8278;
+  font-size: 12px;
+}
+.playground-guide-body dl {
+  margin: 22px 0;
+}
+.playground-guide-body dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.playground-guide-body dt {
+  color: #83928b;
+}
+.playground-guide-body dd {
+  margin: 0;
+  color: #395548;
+  font-weight: 500;
+}
+.playground-guide-body > small {
+  color: #91a098;
+  font-size: 9px;
+}
+.playground-page > .panel {
+  position: relative;
+}
+.playground-closed-icon {
+  position: absolute;
+  right: 30px;
+  bottom: 24px;
+  color: #dce6e1;
+}
+.playground-closed-icon svg {
+  width: 55px;
+  height: 55px;
+}
+.settings-panel .panel-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 26px;
+}
+.setting-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #41725f;
+  background: #eaf5f0;
+}
+.setting-copy {
+  flex: 1;
+  min-width: 0;
+}
+.setting-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+.setting-title h3 {
+  font-size: 15px;
+}
+.setting-state {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: #f0f3f2;
+  color: #7e8985;
+  font-size: 9px;
+}
+.setting-state.enabled {
+  background: #eaf6f0;
+  color: #338261;
+}
+.setting-copy p {
+  color: #6d7e75;
+  font-size: 12px;
+}
+.setting-copy small {
+  color: #94a098;
+  font-size: 9px;
+}
+.switch {
+  width: 48px;
+  height: 27px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #cbd5d1;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.switch span {
+  display: block;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px #17383b2b;
+  transition: transform 0.2s;
+}
+.switch.on {
+  background: var(--green);
+}
+.switch.on span {
+  transform: translateX(21px);
+}
 @media (min-width: 1600px) {
   .login-story {
     padding: 50px 90px;
@@ -1674,6 +1887,12 @@ legend {
   }
   .workspace-grid {
     grid-template-columns: 1fr;
+  }
+  .playground-grid {
+    grid-template-columns: 1fr;
+  }
+  .playground-guide {
+    position: static;
   }
   .editor-panel {
     position: static;
@@ -1928,6 +2147,17 @@ legend {
   }
   .form-actions > .button {
     flex: 1;
+  }
+  .setting-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 20px;
+  }
+  .setting-copy {
+    flex-basis: calc(100% - 70px);
+  }
+  .setting-row .switch {
+    margin-left: 68px;
   }
   .competition-pick > div {
     align-items: flex-start;

@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { Problems } from './pages/Problems';
 import { Submissions, SubmissionDetail } from './pages/Submissions';
 import { Competitions, CompetitionDetail } from './pages/Competitions';
+const Playground = lazy(() => import('./pages/Playground').then((m) => ({ default: m.Playground })));
 const Workspace = lazy(() => import('./pages/Workspace').then((m) => ({ default: m.Workspace })));
 const AdminProblems = lazy(() => import('./pages/AdminProblems').then((m) => ({ default: m.AdminProblems })));
 const AdminProblemEditor = lazy(() =>
@@ -18,6 +19,7 @@ const AdminCompetitions = lazy(() =>
 const CreateCompetition = lazy(() =>
   import('./pages/AdminCompetitions').then((m) => ({ default: m.CreateCompetition })),
 );
+const AdminSettings = lazy(() => import('./pages/AdminSettings').then((m) => ({ default: m.AdminSettings })));
 
 export default function App() {
   return (
@@ -40,12 +42,14 @@ function AppRoutes() {
           <Route path="submissions/:id" element={<SubmissionDetail />} />
           <Route path="competitions" element={<Competitions />} />
           <Route path="competitions/:id" element={<CompetitionDetail />} />
+          <Route path="playground" element={<Playground />} />
           <Route element={<Protected admin />}>
             <Route path="admin/problems" element={<AdminProblems />} />
             <Route path="admin/problems/new" element={<AdminProblemEditor />} />
             <Route path="admin/problems/:id" element={<AdminProblemEditor />} />
             <Route path="admin/competitions" element={<AdminCompetitions />} />
             <Route path="admin/competitions/new" element={<CreateCompetition />} />
+            <Route path="admin/settings" element={<AdminSettings />} />
           </Route>
         </Route>
       </Route>

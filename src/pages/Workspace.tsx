@@ -7,14 +7,10 @@ import Markdown from 'react-markdown';
 import { Clock3, Cpu, Send, RotateCcw, Save, ChevronLeft, FileCode2 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api, json, message } from '../lib/api';
+import { codeTemplates } from '../lib/code';
 import { useResource, languageName, number } from '../lib/hooks';
 import { Difficulty, ErrorBox, Loading } from '../components/ui';
 import type { Language, Problem } from '../types';
-
-const templates: Record<Language, string> = {
-  CPP: '#include <iostream>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    // เขียนคำตอบของคุณที่นี่\n\n    return 0;\n}\n',
-  PYTHON: '# เขียนคำตอบของคุณที่นี่\ndef solve():\n    pass\n\n\nif __name__ == "__main__":\n    solve()\n',
-};
 
 export function Workspace() {
   const { id } = useParams();
@@ -155,9 +151,9 @@ function CodePane({
   const draftKey = `nr-draft:${user?.id}:${problem.id}:${language}:${competitionId || 'practice'}`;
   const [code, setCode] = useState(() => {
     try {
-      return localStorage.getItem(draftKey) ?? templates[language];
+      return localStorage.getItem(draftKey) ?? codeTemplates[language];
     } catch {
-      return templates[language];
+      return codeTemplates[language];
     }
   });
   const [saved, setSaved] = useState(true);
@@ -204,7 +200,7 @@ function CodePane({
           aria-label="เริ่มโค้ดใหม่"
           title="เริ่มโค้ดใหม่"
           onClick={() => {
-            if (window.confirm('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) setCode(templates[language]);
+            if (window.confirm('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) setCode(codeTemplates[language]);
           }}
         >
           <RotateCcw size={16} />

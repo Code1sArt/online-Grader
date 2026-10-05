@@ -13,19 +13,33 @@ vi.mock('../src/components/GoogleSignIn', () => ({
   ),
 }));
 vi.mock('@uiw/react-codemirror', () => ({
-  default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea aria-label="ตัวแก้ไขโค้ด" value={value} onChange={(e) => onChange(e.target.value)} />
+  default: ({
+    value,
+    onChange,
+    'aria-label': ariaLabel,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    'aria-label'?: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel || 'ตัวแก้ไขโค้ด'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   ),
 }));
 let requests: { path: string; options: RequestInit }[];
 let role: 'USER' | 'ADMIN';
 let failProblems: boolean;
 let joined: boolean;
+let playgroundEnabled: boolean;
 beforeEach(() => {
   requests = [];
   role = 'USER';
   failProblems = false;
   joined = false;
+  playgroundEnabled = false;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options: RequestInit = {}) => {
@@ -60,9 +74,28 @@ beforeEach(() => {
                             ? { entries: [] }
                             : path === '/competitions'
                               ? [competition]
-                              : path.endsWith('/test-cases')
-                                ? {}
-                                : null;
+                              : path === '/settings'
+                                ? options.method === 'PATCH'
+                                  ? {
+                                      playgroundEnabled: (playgroundEnabled = JSON.parse(
+                                        options.body as string,
+                                      ).playgroundEnabled),
+                                      updatedAt: new Date().toISOString(),
+                                    }
+                                  : { playgroundEnabled, updatedAt: null }
+                                : path === '/playground/run'
+                                  ? {
+                                      status: 'ACCEPTED',
+                                      stdout: 'hello\n',
+                                      stderr: '',
+                                      compilerOutput: '',
+                                      message: '',
+                                      executionTimeMs: 8,
+                                      memoryUsedKb: 1024,
+                                    }
+                                  : path.endsWith('/test-cases')
+                                    ? {}
+                                    : null;
       if (payload === null) throw new Error(`Unexpected request ${path}`);
       return new Response(JSON.stringify(payload), { status: 200 });
     }),
@@ -145,6 +178,30 @@ describe('NR Grader user workflows', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'ออกจากระบบ' }));
     expect(await screen.findByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
     expect(tokenStore.get()).toBeNull();
+  });
+  it('lets an admin enable the playground from system settings', async () => {
+    role = 'ADMIN';
+    mount('/admin/settings');
+    await userEvent.click(await screen.findByRole('switch', { name: 'เปิด Playground' }));
+    expect(await screen.findByRole('switch', { name: 'ปิด Playground' })).toBeChecked();
+    const request = requests.find((item) => item.path === '/settings' && item.options.method === 'PATCH');
+    expect(JSON.parse(request?.options.body as string)).toEqual({ playgroundEnabled: true });
+  });
+  it('runs playground code with stdin and displays stdout', async () => {
+    playgroundEnabled = true;
+    mount('/playground');
+    const editor = await screen.findByRole('textbox', { name: 'ตัวแก้ไขโค้ด Playground' });
+    await userEvent.clear(editor);
+    await userEvent.type(editor, 'print(input())');
+    await userEvent.type(screen.getByRole('textbox', { name: 'ข้อมูลนำเข้า Playground' }), 'hello');
+    await userEvent.click(screen.getByRole('button', { name: 'รัน Python' }));
+    await waitFor(() => expect(document.querySelector('.playground-output pre')).toHaveTextContent('hello'));
+    const request = requests.find((item) => item.path === '/playground/run');
+    expect(JSON.parse(request?.options.body as string)).toEqual({
+      language: 'PYTHON',
+      sourceCode: 'print(input())',
+      stdin: 'hello',
+    });
   });
   // File uploads are tested in real Chromium: jsdom does not synchronize user-event
   // file lists with native required validation / FormData(form).
