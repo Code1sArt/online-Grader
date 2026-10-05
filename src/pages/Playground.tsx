@@ -83,11 +83,11 @@ function PlaygroundEditor() {
             </div>
             <div>
               <dt>เวลาสูงสุด</dt>
-              <dd>5 วินาที</dd>
+              <dd>3 วินาที</dd>
             </div>
             <div>
               <dt>หน่วยความจำ</dt>
-              <dd>256 MB</dd>
+              <dd>128 MB</dd>
             </div>
           </dl>
           <small>ฉบับร่างและ stdin บันทึกเฉพาะใน browser เครื่องนี้</small>
