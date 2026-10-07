@@ -107,6 +107,7 @@ export interface Leaderboard {
     rank: number;
     userId: string;
     displayName: string;
+    avatarUrl: string | null;
     totalScore: number;
     completionTimeMs: number;
     executionTimeMs: number;

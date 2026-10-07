@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Trophy, Users, BookOpen, RefreshCw } from 'lucide-react';
+import { CalendarDays, Trophy, Users, BookOpen, RefreshCw, Flag, Zap, Crown, Timer } from 'lucide-react';
+import { useAuth } from '../auth';
 import { api, json, message } from '../lib/api';
 import { dateTime, number, useResource, duration } from '../lib/hooks';
 import { Empty, ErrorBox, Heading, Loading } from '../components/ui';
@@ -189,65 +190,151 @@ export function CompetitionDetail() {
     </div>
   );
 }
-function LeaderboardPanel({ id }: { id: string }) {
-  const { data, error, loading, reload } = useResource<Leaderboard>(`/competitions/${id}/leaderboard`);
+type Racer = Leaderboard['entries'][number];
+
+function RacerAvatar({ entry }: { entry: Racer }) {
+  const [failedUrl, setFailedUrl] = useState<string>();
   return (
-    <section className="panel">
-      <div className="panel-title">
-        <h2>
-          <Trophy size={20} />
-          ตารางอันดับ
-        </h2>
-        <button className="text-button" onClick={reload}>
-          <RefreshCw size={15} />
-          รีเฟรช
+    <span className="racer-avatar">
+      {entry.avatarUrl && entry.avatarUrl !== failedUrl ? (
+        <img
+          src={entry.avatarUrl}
+          alt={`รูปโปรไฟล์ ${entry.displayName}`}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={() => setFailedUrl(entry.avatarUrl!)}
+        />
+      ) : (
+        <span aria-label={`รูปแทนตัว ${entry.displayName}`}>
+          {Array.from(entry.displayName.trim())[0] || '?'}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function raceTime(entry: Racer) {
+  return duration(entry.completionTimeMs < 1e12 ? entry.completionTimeMs / 60000 : null, 'นาที');
+}
+
+function LeaderboardPanel({ id }: { id: string }) {
+  const { user } = useAuth();
+  const { data, error, loading, reload } = useResource<Leaderboard>(`/competitions/${id}/leaderboard`);
+  const entries = data?.entries ?? [];
+  const leaders = entries.filter((entry) => entry.rank <= 3);
+  const myEntry = entries.find((entry) => entry.userId === user?.id);
+  return (
+    <section className="panel speed-leaderboard" aria-labelledby="speed-title">
+      <div className="speed-header">
+        <div>
+          <span className="speed-eyebrow">
+            <Flag size={14} /> THE SPEED ARENA
+          </span>
+          <h2 id="speed-title">
+            เจ้าแห่งความเร็ว <Zap size={26} fill="currentColor" />
+          </h2>
+          <p>ทุกคะแนนมีความหมาย ทุกวินาทีมีโอกาสแซง</p>
+        </div>
+        <button className="speed-refresh" onClick={reload} disabled={loading}>
+          <RefreshCw size={15} /> รีเฟรชอันดับ
         </button>
+      </div>
+      <div className="speed-race-info">
+        <span>
+          <Users size={15} /> {number(entries.length)} ผู้เข้าแข่งขัน
+        </span>
+        {myEntry && (
+          <span className="speed-my-rank">
+            อันดับของคุณ <strong>#{myEntry.rank}</strong>
+          </span>
+        )}
+        {data?.generatedAt && <span>อัปเดต {dateTime(data.generatedAt)}</span>}
       </div>
       <ErrorBox error={error} retry={reload} />
       {loading ? (
         <Loading />
       ) : (
         !error &&
-        (data?.entries.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>อันดับ</th>
-                  <th>ผู้เข้าแข่งขัน</th>
-                  <th>คะแนน</th>
-                  <th>สำเร็จ</th>
-                  <th>เวลาส่งคำตอบ</th>
-                  <th>เวลาโปรแกรม</th>
-                  <th>หน่วยความจำ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.entries.map((e) => (
-                  <tr key={e.userId}>
-                    <td>
-                      <span className={`rank ${e.rank <= 3 ? 'podium' : ''}`}>{e.rank}</span>
-                    </td>
-                    <td>
-                      <strong>{e.displayName}</strong>
-                    </td>
-                    <td className="mono green-text">{number(e.totalScore)}</td>
-                    <td>{e.solvedCount}</td>
-                    <td>
-                      {duration(
-                        e.completionTimeMs < 1e12 ? Math.round(e.completionTimeMs / 60000) : null,
-                        'นาที',
-                      )}
-                    </td>
-                    <td>{duration(e.executionTimeMs)}</td>
-                    <td>{duration(e.memoryUsedKb, 'KB')}</td>
+        (entries.length ? (
+          <>
+            <div className="speed-podium" aria-label="ผู้เข้าแข่งขัน 3 อันดับแรก">
+              {leaders.map((entry) => (
+                <article className={`speed-podium-card place-${entry.rank}`} key={entry.userId}>
+                  <span className="speed-place-label">
+                    {entry.rank === 1 ? (
+                      <>
+                        <Crown size={17} /> ผู้นำสนาม
+                      </>
+                    ) : (
+                      `อันดับ ${entry.rank}`
+                    )}
+                  </span>
+                  <div className="speed-podium-avatar">
+                    <RacerAvatar entry={entry} />
+                    <span className="speed-position">{entry.rank}</span>
+                  </div>
+                  <h3>{entry.displayName}</h3>
+                  {entry.userId === user?.id && <span className="speed-you">คุณ</span>}
+                  <div className="speed-podium-score">
+                    {number(entry.totalScore)} <small>คะแนน</small>
+                  </div>
+                  <div className="speed-podium-time">
+                    <Timer size={14} /> {raceTime(entry)}
+                  </div>
+                  <div className="speed-podium-base" aria-hidden="true">
+                    0{entry.rank}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="speed-grid-heading">
+              <span>
+                <Flag size={15} /> ตารางอันดับ
+              </span>
+              <small>คะแนน → เวลาส่ง → เวลาโปรแกรม → หน่วยความจำ</small>
+            </div>
+            <div className="table-scroll">
+              <table className="speed-table">
+                <caption className="sr-only">ตารางอันดับผู้เข้าแข่งขัน เรียงตามอันดับจากระบบ</caption>
+                <thead>
+                  <tr>
+                    <th>อันดับ</th>
+                    <th>ผู้เข้าแข่งขัน</th>
+                    <th>คะแนน</th>
+                    <th>สำเร็จ</th>
+                    <th>เวลาส่งคำตอบ</th>
+                    <th>เวลาโปรแกรม</th>
+                    <th>หน่วยความจำ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {entries.map((entry) => (
+                    <tr key={entry.userId} className={entry.userId === user?.id ? 'speed-current-user' : ''}>
+                      <td>
+                        <span className={`speed-table-rank place-${entry.rank}`}>#{entry.rank}</span>
+                      </td>
+                      <td>
+                        <div className="speed-racer">
+                          <RacerAvatar entry={entry} />
+                          <strong>{entry.displayName}</strong>
+                          {entry.userId === user?.id && <span className="speed-you">คุณ</span>}
+                        </div>
+                      </td>
+                      <td className="mono speed-score">{number(entry.totalScore)}</td>
+                      <td>{entry.solvedCount} โจทย์</td>
+                      <td className="mono">{raceTime(entry)}</td>
+                      <td className="mono">{duration(entry.executionTimeMs)}</td>
+                      <td className="mono">{duration(entry.memoryUsedKb, 'KB')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
-          <Empty title="ยังไม่มีผู้เข้าแข่งขัน" />
+          <Empty title="สนามพร้อมแล้ว รอผู้ท้าชิงคนแรก">
+            สมัครเข้าร่วม แล้วเริ่มเก็บคะแนนเพื่อชิงตำแหน่งผู้นำ
+          </Empty>
         ))
       )}
     </section>

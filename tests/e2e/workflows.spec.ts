@@ -250,3 +250,80 @@ test('queued submissions update automatically to their final result', async ({ p
   await expect(page.getByText('ผ่านทุกเทส', { exact: true })).toHaveCount(2, { timeout: 10000 });
   expect(polls).toBe(3);
 });
+
+test('speed leaderboard shows podium, profile photos and resilient fallbacks', async ({ page }, info) => {
+  await mockApi(page);
+  const avatar = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#4b8d75"/><circle cx="50" cy="38" r="19" fill="#f2d4a5"/><path d="M15 100 Q15 60 50 60 Q85 60 85 100" fill="#d5fb70"/></svg>')}`;
+  const entries = [
+    {
+      rank: 1,
+      userId: user.id,
+      displayName: user.displayName,
+      avatarUrl: avatar,
+      totalScore: 300,
+      completionTimeMs: 91000,
+      executionTimeMs: 23,
+      memoryUsedKb: 8192,
+      solvedCount: 3,
+    },
+    {
+      rank: 2,
+      userId: 'racer-2',
+      displayName: 'สายฟ้า โค้ดไว',
+      avatarUrl: null,
+      totalScore: 280,
+      completionTimeMs: 125000,
+      executionTimeMs: 42,
+      memoryUsedKb: 9216,
+      solvedCount: 2,
+    },
+    {
+      rank: 3,
+      userId: 'racer-3',
+      displayName: 'นักแข่งผู้ไม่ยอมแพ้และพร้อมท้าชิงทุกสนาม',
+      avatarUrl: '/missing-avatar.png',
+      totalScore: 250,
+      completionTimeMs: 185000,
+      executionTimeMs: 65,
+      memoryUsedKb: 10240,
+      solvedCount: 2,
+    },
+    {
+      rank: 4,
+      userId: 'racer-4',
+      displayName: 'ผู้ท้าชิงหน้าใหม่',
+      avatarUrl: null,
+      totalScore: 0,
+      completionTimeMs: Number.MAX_SAFE_INTEGER,
+      executionTimeMs: Number.MAX_SAFE_INTEGER,
+      memoryUsedKb: Number.MAX_SAFE_INTEGER,
+      solvedCount: 0,
+    },
+  ];
+  let refreshes = 0;
+  await page.route('**/api/competitions/c1/leaderboard', (route) => {
+    refreshes += 1;
+    return route.fulfill({ json: { competitionId: 'c1', generatedAt: new Date().toISOString(), entries } });
+  });
+  await page.goto('/competitions/c1');
+  await expect(page.getByRole('heading', { name: 'เจ้าแห่งความเร็ว' })).toBeVisible();
+  await expect(page.locator('.speed-podium-card')).toHaveCount(3);
+  await expect(page.locator('.speed-current-user')).toContainText(user.displayName);
+  await expect(page.locator('.speed-podium img')).toHaveAttribute('src', avatar);
+  await expect(page.locator('.speed-podium img')).toHaveJSProperty('naturalWidth', 100);
+  await expect(page.locator('.place-3 .racer-avatar')).toContainText('น');
+  await expect(page.locator('.speed-table tbody tr').last()).toContainText('—');
+  await noOverflow(page);
+  await page
+    .locator('.speed-leaderboard')
+    .screenshot({ path: `test-results/speed-leaderboard-${info.project.name}.png` });
+  await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await expect(page.locator('.speed-podium-card')).toHaveCount(3);
+  expect(refreshes).toBe(2);
+  entries.splice(1);
+  await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await expect(page.locator('.speed-podium-card')).toHaveCount(1);
+  entries.splice(0);
+  await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await expect(page.getByText('สนามพร้อมแล้ว รอผู้ท้าชิงคนแรก')).toBeVisible();
+});
