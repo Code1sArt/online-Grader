@@ -167,6 +167,39 @@ export function SubmissionDetail() {
               </div>
             </div>
           </div>
+          {!pending && !!data.subtaskResults?.length && (
+            <section className="panel form-panel">
+              <div className="panel-title flush">
+                <h2>ผลตรวจราย Subtask</h2>
+                <span>ผ่านครบกลุ่มจึงได้คะแนน</span>
+              </div>
+              <div className="subtask-cards">
+                {data.subtaskResults.map((group) => (
+                  <article className="subtask-card" key={group.subtaskId}>
+                    <div className="subtask-card-head">
+                      <strong>{group.name}</strong>
+                      <Badge status={group.status} />
+                    </div>
+                    {group.description && <p>{group.description}</p>}
+                    <div className="subtask-result-score">
+                      {number(group.score)} <small>/ {number(group.maxScore)} คะแนน</small>
+                    </div>
+                    <div className="subtask-result-metrics">
+                      <span>
+                        {group.passedCount} / {group.totalCount} เทสผ่าน
+                      </span>
+                      <span>
+                        <Clock3 size={14} /> {duration(group.executionTimeMs)} รวม
+                      </span>
+                      <span>
+                        <Cpu size={14} /> {duration(group.memoryUsedKb, 'KB')} สูงสุด
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="panel">
             <div className="panel-title">
               <h2>ผลตรวจรายเทสเคส</h2>
@@ -181,7 +214,11 @@ export function SubmissionDetail() {
                     <div className="test-summary">
                       <strong>{r.name}</strong>
                       <Badge status={r.status} />
-                      <span>{number(r.score)} คะแนน</span>
+                      <span>
+                        {r.subtaskId
+                          ? `คะแนนรวมใน ${data.subtaskResults?.find((group) => group.subtaskId === r.subtaskId)?.name || 'subtask'}`
+                          : `${number(r.score)} คะแนน`}
+                      </span>
                       <span className="muted">
                         {duration(r.executionTimeMs)} · {duration(r.memoryUsedKb, 'KB')}
                       </span>

@@ -84,6 +84,27 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
                 </div>
               </section>
             )}
+            {!!problem.subtasks?.length && (
+              <section>
+                <h2>Subtasks / กลุ่มคะแนน</h2>
+                <p className="muted">
+                  ต้องผ่านทุกเทสในกลุ่มจึงได้คะแนนกลุ่มนั้น ใช้ Time / Memory Limit ของโจทย์
+                </p>
+                <div className="subtask-cards">
+                  {problem.subtasks.map((group) => (
+                    <article className="subtask-card" key={group.id}>
+                      <div className="subtask-card-head">
+                        <strong>
+                          {group.position}. {group.name}
+                        </strong>
+                        <span className="badge green">{number(group.score)} คะแนน</span>
+                      </div>
+                      <p>{group.description || 'ใช้ข้อจำกัดข้อมูลของโจทย์'}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
             <section>
               <h2>ตัวอย่าง</h2>
               {samples.length ? (

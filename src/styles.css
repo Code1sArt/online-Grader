@@ -2703,3 +2703,89 @@ legend {
 .speed-racer {
   min-width: 230px;
 }
+
+.subtask-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.subtask-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fbf9;
+}
+.subtask-card-head,
+.subtask-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.subtask-card-head strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.subtask-card p {
+  color: #536f5e;
+  font-size: 12px;
+  margin-top: 9px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.subtask-card-foot {
+  margin-top: 14px;
+  font-size: 11px;
+}
+.subtask-notice {
+  padding: 12px 15px;
+  margin-top: 12px;
+  background: #fff8e8;
+  color: #805d22;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.subtask-result-score {
+  font:
+    500 28px 'IBM Plex Mono',
+    monospace;
+  color: var(--green);
+  margin: 15px 0;
+}
+.subtask-result-score small {
+  font:
+    12px 'IBM Plex Sans Thai',
+    sans-serif;
+  color: var(--muted);
+}
+.subtask-result-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 11px;
+  color: #536f5e;
+}
+.subtask-result-metrics span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.test-assignment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 200px;
+}
+.test-assignment select {
+  width: 140px;
+}
+.test-assignment input {
+  width: 90px;
+}
+.test-assignment .error-box {
+  width: 100%;
+}

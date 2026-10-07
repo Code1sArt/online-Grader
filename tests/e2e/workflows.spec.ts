@@ -331,3 +331,131 @@ test('speed leaderboard shows podium, profile photos and resilient fallbacks', a
   await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
   await expect(page.getByText('สนามพร้อมแล้ว รอผู้ท้าชิงคนแรก')).toBeVisible();
 });
+
+test('admin configures subtasks, assigns tests and uploads group members', async ({ page }, info) => {
+  await mockApi(page, true);
+  const state = {
+    ...problem,
+    status: 'DRAFT',
+    scoringEditable: true,
+    subtasks: [] as { id: string; name: string; score: number; position: number; description: string }[],
+    testCases: [{ ...problem.testCases![0], subtaskId: null as string | null }],
+  };
+  await page.route('**/api/problems/p1', (route) => route.fulfill({ json: state }));
+  await page.route('**/api/problems/p1/subtasks', async (route) => {
+    const group = { ...route.request().postDataJSON(), id: `g${state.subtasks.length + 1}` };
+    state.subtasks.push(group);
+    await route.fulfill({ json: group });
+  });
+  await page.route('**/api/problems/p1/subtasks/g1', async (route) => {
+    Object.assign(state.subtasks[0], route.request().postDataJSON());
+    await route.fulfill({ json: state.subtasks[0] });
+  });
+  await page.route('**/api/problems/p1/test-cases/t1', async (route) => {
+    Object.assign(state.testCases[0], route.request().postDataJSON());
+    await route.fulfill({ json: state.testCases[0] });
+  });
+  await page.goto('/admin/problems/p1');
+  await page.getByLabel('ชื่อ subtask', { exact: true }).fill('ข้อมูลเล็ก');
+  await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('n ≤ 100');
+  await page.getByRole('button', { name: 'เพิ่ม subtask', exact: true }).click();
+  await expect(page.locator('.subtask-card')).toHaveCount(1);
+  await page.getByLabel('ชื่อ subtask', { exact: true }).fill('ข้อมูลใหญ่');
+  await page.getByLabel('คะแนน subtask', { exact: true }).fill('80');
+  await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('n ≤ 200,000');
+  await page.getByRole('button', { name: 'เพิ่ม subtask', exact: true }).click();
+  await expect(page.locator('.subtask-card')).toHaveCount(2);
+  await page.getByLabel('Subtask ของ ตัวอย่าง', { exact: true }).selectOption('g1');
+  await page.getByRole('button', { name: 'บันทึกกลุ่มของ ตัวอย่าง' }).click();
+  await expect(page.locator('.subtask-card').first()).toContainText('1 เทส');
+  expect(state.testCases[0].score).toBe(0);
+  await page.getByLabel('Subtask ของเทสนี้', { exact: true }).selectOption('g2');
+  await expect(page.getByLabel('คะแนนเทสนี้', { exact: true })).toBeDisabled();
+  await page.getByLabel('ชื่อเทสเคส', { exact: true }).fill('ข้อมูลใหญ่ 1');
+  await page
+    .getByLabel(/ไฟล์ข้อมูลนำเข้า/)
+    .setInputFiles({ name: 'large.in', mimeType: 'text/plain', buffer: Buffer.from('100000') });
+  await page
+    .getByLabel(/ไฟล์คำตอบ/)
+    .setInputFiles({ name: 'large.sol', mimeType: 'text/plain', buffer: Buffer.from('100000') });
+  await page.route('**/api/problems/p1/test-cases', async (route) => {
+    const body = route.request().postData()!;
+    expect(body).toContain('name="subtaskId"\r\n\r\ng2');
+    expect(body).toContain('name="score"\r\n\r\n0');
+    state.testCases.push({
+      ...state.testCases[0],
+      id: 't2',
+      name: 'ข้อมูลใหญ่ 1',
+      isSample: false,
+      subtaskId: 'g2',
+      position: 2,
+    });
+    await route.fulfill({ json: state.testCases[1] });
+  });
+  await page.getByRole('button', { name: 'เพิ่มเทสเคส', exact: true }).click();
+  await expect(page.locator('.subtask-card').nth(1)).toContainText('1 เทส');
+  await expect(page.getByText('100 / 100 คะแนน', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'แก้ไข subtask ข้อมูลเล็ก' }).click();
+  await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('1 ≤ n ≤ 100');
+  await page.getByRole('button', { name: 'บันทึก subtask', exact: true }).click();
+  await expect(page.locator('.subtask-card').first()).toContainText('1 ≤ n ≤ 100');
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/subtasks-admin-${info.project.name}.png`, fullPage: true });
+  await page.goto('/problems/p1');
+  await expect(page.getByRole('heading', { name: 'Subtasks / กลุ่มคะแนน' })).toBeVisible();
+  await expect(page.locator('.subtask-card')).toHaveCount(2);
+  await noOverflow(page);
+});
+
+test('submission shows all-or-nothing subtask scores and group performance', async ({ page }, info) => {
+  await mockApi(page);
+  await page.route('**/api/submissions/s1', (route) =>
+    route.fulfill({
+      json: {
+        ...submission,
+        status: 'PARTIAL',
+        score: 20,
+        passedCount: 2,
+        totalCount: 3,
+        subtaskResults: [
+          {
+            subtaskId: 'g1',
+            name: 'ข้อมูลเล็ก',
+            description: 'n ≤ 100',
+            maxScore: 20,
+            score: 20,
+            status: 'ACCEPTED',
+            passedCount: 1,
+            totalCount: 1,
+            executionTimeMs: 10,
+            memoryUsedKb: 2048,
+          },
+          {
+            subtaskId: 'g2',
+            name: 'ข้อมูลใหญ่',
+            description: 'n ≤ 200,000',
+            maxScore: 80,
+            score: 0,
+            status: 'TIME_LIMIT_EXCEEDED',
+            passedCount: 1,
+            totalCount: 2,
+            executionTimeMs: 1020,
+            memoryUsedKb: 8192,
+          },
+        ],
+        results: [{ ...submission.results![0], subtaskId: 'g1', score: 0 }],
+      },
+    }),
+  );
+  await page.goto('/submissions/s1');
+  await expect(page.getByRole('heading', { name: 'ผลตรวจราย Subtask' })).toBeVisible();
+  const cards = page.locator('.subtask-card');
+  await expect(cards.first()).toContainText('20 / 20 คะแนน');
+  await expect(cards.nth(1)).toContainText('0 / 80 คะแนน');
+  await expect(cards.nth(1)).toContainText('1 / 2 เทสผ่าน');
+  await expect(cards.nth(1)).toContainText('1,020 ms รวม');
+  await expect(cards.nth(1)).toContainText('8,192 KB สูงสุด');
+  await expect(page.getByText('คะแนนรวมใน ข้อมูลเล็ก', { exact: true })).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/subtasks-result-${info.project.name}.png`, fullPage: true });
+});

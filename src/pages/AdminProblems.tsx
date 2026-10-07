@@ -4,7 +4,7 @@ import { Plus, Save, Upload, Trash2, Pencil, ChevronLeft, Eye } from 'lucide-rea
 import { api, json, message } from '../lib/api';
 import { useResource, number } from '../lib/hooks';
 import { Badge, Difficulty, Empty, ErrorBox, Field, Heading, Loading } from '../components/ui';
-import type { Language, Problem } from '../types';
+import type { Language, Problem, Subtask, TestCase } from '../types';
 
 export function AdminProblems() {
   const { data, loading, error, reload } = useResource<Problem[]>('/problems');
@@ -289,6 +289,7 @@ function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => 
       </form>
       {problem && (
         <>
+          <SubtaskEditor problem={problem} reload={reload!} />
           <TestCaseEditor problem={problem} reload={reload!} />
           <section className="panel publish-panel">
             <div>
@@ -337,13 +338,21 @@ function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => 
 function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const total = (problem.testCases || []).reduce((sum, t) => sum + Number(t.score || 0), 0);
+  const [subtaskId, setSubtaskId] = useState('');
+  const total =
+    (problem.subtasks || []).reduce((sum, group) => sum + Number(group.score), 0) +
+    (problem.testCases || [])
+      .filter((test) => !test.subtaskId)
+      .reduce((sum, t) => sum + Number(t.score || 0), 0);
+  const locked = !!problem.subtasks?.length && !problem.scoringEditable;
   async function upload(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
     const form = e.currentTarget;
     const data = new FormData(form);
     data.set('isSample', data.has('isSample') ? 'true' : 'false');
+    if (!subtaskId) data.delete('subtaskId');
+    else data.set('score', '0');
     for (const [field, ext] of [
       ['inputFile', '.in'],
       ['solutionFile', '.sol'],
@@ -359,6 +368,7 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
     try {
       await api(`/problems/${problem.id}/test-cases`, { method: 'POST', body: data });
       form.reset();
+      setSubtaskId('');
       reload();
     } catch (e) {
       setError(message(e));
@@ -396,7 +406,7 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
                 <th>ลำดับ</th>
                 <th>ชื่อ</th>
                 <th>การแสดงผล</th>
-                <th>คะแนน</th>
+                <th>คะแนน / Subtask</th>
                 <th>จัดการ</th>
               </tr>
             </thead>
@@ -406,11 +416,13 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
                   <td>{t.position}</td>
                   <td>{t.name}</td>
                   <td>{t.isSample ? 'ตัวอย่างเผยแพร่' : 'เทสลับ'}</td>
-                  <td>{number(t.score || 0)}</td>
+                  <td>
+                    <TestCaseAssignment test={t} problem={problem} reload={reload} />
+                  </td>
                   <td>
                     <button
                       className="icon-button danger"
-                      disabled={busy}
+                      disabled={busy || locked}
                       onClick={() => void remove(t.id)}
                       aria-label={`ลบ ${t.name}`}
                     >
@@ -426,6 +438,25 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
         <p className="muted">ยังไม่มีเทสเคส เพิ่มคู่ไฟล์ด้านล่างเพื่อเริ่มต้น</p>
       )}
       <form className="upload-form" onSubmit={(e) => void upload(e)}>
+        <Field
+          label="Subtask ของเทสนี้"
+          hint="เทสในกลุ่มต้องผ่านทั้งหมดจึงได้คะแนน ใช้ Time / Memory Limit ของโจทย์"
+        >
+          <select
+            name="subtaskId"
+            aria-label="Subtask ของเทสนี้"
+            value={subtaskId}
+            onChange={(event) => setSubtaskId(event.target.value)}
+            disabled={locked}
+          >
+            <option value="">ให้คะแนนรายเทส (แบบเดิม)</option>
+            {(problem.subtasks || []).map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name} · {number(group.score)} คะแนน
+              </option>
+            ))}
+          </select>
+        </Field>
         <div className="form-row">
           <Field label="ชื่อเทสเคส">
             <input name="name" required placeholder="เช่น จำนวนเต็มบวก" maxLength={191} />
@@ -440,15 +471,20 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
               defaultValue={Math.max(0, ...(problem.testCases || []).map((t) => t.position)) + 1}
             />
           </Field>
-          <Field label="คะแนนเทสนี้">
+          <Field
+            label="คะแนนเทสนี้"
+            hint={subtaskId ? 'ใช้คะแนนของ subtask แทนคะแนนรายเทส' : 'ใส่ 0 สำหรับตัวอย่างที่ไม่ให้คะแนน'}
+          >
             <input
               name="score"
+              aria-label="คะแนนเทสนี้"
               type="number"
               required
-              min={0.01}
+              min={0}
               max={999999.99}
               step={0.01}
-              defaultValue={Math.max(0.01, Number(problem.maxScore) - total)}
+              disabled={!!subtaskId}
+              defaultValue={Math.max(0, Number(problem.maxScore) - total)}
             />
           </Field>
         </div>
@@ -464,11 +500,255 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
           <input name="isSample" type="checkbox" />
           แสดงเป็นตัวอย่างให้ผู้เรียนเห็น
         </label>
-        <button className="button secondary" disabled={busy}>
+        <button className="button secondary" disabled={busy || locked}>
           <Upload size={17} />
           {busy ? 'กำลังอัปโหลด…' : 'เพิ่มเทสเคส'}
         </button>
       </form>
     </section>
+  );
+}
+
+function SubtaskEditor({ problem, reload }: { problem: Problem; reload: () => void }) {
+  const [editing, setEditing] = useState<Subtask>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const groups = problem.subtasks || [];
+  const editable = problem.scoringEditable ?? problem.status === 'DRAFT';
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !editable) return;
+    const values = new FormData(event.currentTarget);
+    setBusy(true);
+    setError('');
+    try {
+      await api(
+        `/problems/${problem.id}/subtasks${editing ? `/${editing.id}` : ''}`,
+        json(editing ? 'PATCH' : 'POST', {
+          name: String(values.get('name')).trim(),
+          description: String(values.get('description')).trim(),
+          score: Number(values.get('score')),
+          position: Number(values.get('position')),
+        }),
+      );
+      setEditing(undefined);
+      reload();
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(group: Subtask) {
+    if (busy || !editable) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/problems/${problem.id}/subtasks/${group.id}`, { method: 'DELETE' });
+      reload();
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel form-panel">
+      <div className="panel-title flush">
+        <h2>Subtasks / กลุ่มทดสอบ</h2>
+        <span>{groups.length} กลุ่ม</span>
+      </div>
+      <p className="muted">
+        ผ่านทุกเทสในกลุ่มจึงได้คะแนนทั้งกลุ่ม เช่น ข้อมูลเล็ก 20 คะแนน ข้อมูลกลาง 30 คะแนน ข้อมูลใหญ่ 50 คะแนน
+      </p>
+      {!editable && (
+        <p className="subtask-notice">
+          แก้กลุ่มได้เฉพาะโจทย์ฉบับร่างที่ยังไม่มีคำตอบ หากมีคำตอบแล้ว ให้สร้างโจทย์ใหม่เพื่อใช้เกณฑ์ subtask
+        </p>
+      )}
+      <ErrorBox error={error} />
+      <div className="subtask-cards">
+        {groups.map((group) => {
+          const count = (problem.testCases || []).filter((test) => test.subtaskId === group.id).length;
+          return (
+            <article className="subtask-card" key={group.id}>
+              <div className="subtask-card-head">
+                <strong>
+                  {group.position}. {group.name}
+                </strong>
+                <span className="badge green">{number(group.score)} คะแนน</span>
+              </div>
+              <p>{group.description || 'ใช้ข้อจำกัดข้อมูลของโจทย์'}</p>
+              <div className="subtask-card-foot">
+                <span className={count ? 'muted' : 'amber-text'}>
+                  {count} เทส{!count && ' · เพิ่มเทสก่อนเผยแพร่'}
+                </span>
+                <div className="button-row">
+                  <button
+                    className="text-button"
+                    disabled={busy || !editable}
+                    onClick={() => setEditing(group)}
+                    aria-label={`แก้ไข subtask ${group.name}`}
+                  >
+                    <Pencil size={14} /> แก้ไข
+                  </button>
+                  <button
+                    className="text-button danger"
+                    disabled={busy || !editable || count > 0}
+                    onClick={() => void remove(group)}
+                    aria-label={`ลบ subtask ${group.name}`}
+                  >
+                    <Trash2 size={14} /> ลบ
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {editable && (
+        <form
+          key={editing?.id || 'new-subtask'}
+          onSubmit={(event) => void save(event)}
+          className="upload-form"
+        >
+          <h3>{editing ? 'แก้ไขกลุ่มทดสอบ' : 'เพิ่มกลุ่มทดสอบ'}</h3>
+          <div className="form-row">
+            <Field label="ชื่อ subtask">
+              <input
+                name="name"
+                required
+                maxLength={191}
+                defaultValue={editing?.name}
+                placeholder="เช่น ข้อมูลเล็ก"
+              />
+            </Field>
+            <Field label="คะแนน subtask">
+              <input
+                name="score"
+                type="number"
+                required
+                min={0.01}
+                max={999999.99}
+                step={0.01}
+                defaultValue={editing ? Number(editing.score) : 20}
+              />
+            </Field>
+            <Field label="ลำดับ subtask">
+              <input
+                name="position"
+                type="number"
+                required
+                min={1}
+                step={1}
+                defaultValue={editing?.position ?? Math.max(0, ...groups.map((group) => group.position)) + 1}
+              />
+            </Field>
+          </div>
+          <Field
+            label="เงื่อนไขข้อมูลของ subtask"
+            hint="ระบุขนาดหรือเงื่อนไขข้อมูล แล้วอัปโหลดเทสที่ตรงกับเงื่อนไขนี้"
+          >
+            <textarea
+              name="description"
+              rows={2}
+              maxLength={5000}
+              defaultValue={editing?.description || ''}
+              placeholder="เช่น 1 ≤ n ≤ 100"
+            />
+          </Field>
+          <div className="button-row">
+            <button className="button secondary" disabled={busy}>
+              <Plus size={16} />
+              {editing ? 'บันทึก subtask' : 'เพิ่ม subtask'}
+            </button>
+            {editing && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setEditing(undefined)}
+                disabled={busy}
+              >
+                ยกเลิก
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function TestCaseAssignment({
+  test,
+  problem,
+  reload,
+}: {
+  test: TestCase;
+  problem: Problem;
+  reload: () => void;
+}) {
+  const [subtaskId, setSubtaskId] = useState(test.subtaskId || '');
+  const [score, setScore] = useState(Number(test.score || 0));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!problem.scoringEditable)
+    return (
+      <>
+        {test.subtaskId
+          ? problem.subtasks?.find((group) => group.id === test.subtaskId)?.name
+          : `${number(test.score || 0)} คะแนน`}
+      </>
+    );
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(
+        `/problems/${problem.id}/test-cases/${test.id}`,
+        json('PATCH', { subtaskId, score: subtaskId ? 0 : score }),
+      );
+      reload();
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="test-assignment" onSubmit={(event) => void save(event)}>
+      <select
+        aria-label={`Subtask ของ ${test.name}`}
+        value={subtaskId}
+        onChange={(event) => setSubtaskId(event.target.value)}
+        disabled={busy}
+      >
+        <option value="">คะแนนรายเทส</option>
+        {(problem.subtasks || []).map((group) => (
+          <option key={group.id} value={group.id}>
+            {group.name}
+          </option>
+        ))}
+      </select>
+      {!subtaskId && (
+        <input
+          type="number"
+          aria-label={`คะแนนของ ${test.name}`}
+          value={score}
+          onChange={(event) => setScore(Number(event.target.value))}
+          required
+          min={0}
+          max={999999.99}
+          step={0.01}
+          disabled={busy}
+        />
+      )}
+      <button className="text-button" disabled={busy} aria-label={`บันทึกกลุ่มของ ${test.name}`}>
+        <Save size={15} />
+      </button>
+      <ErrorBox error={error} />
+    </form>
   );
 }

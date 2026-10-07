@@ -24,6 +24,25 @@ export interface PlaygroundRunResult {
   executionTimeMs: number | null;
   memoryUsedKb: number | null;
 }
+export interface Subtask {
+  id: string;
+  name: string;
+  description: string | null;
+  score: Decimal;
+  position: number;
+}
+export interface SubtaskResult {
+  subtaskId: string;
+  name: string;
+  description: string | null;
+  maxScore: number;
+  score: number;
+  status: Verdict;
+  passedCount: number;
+  totalCount: number;
+  executionTimeMs: number | null;
+  memoryUsedKb: number | null;
+}
 export interface TestCase {
   id: string;
   name: string;
@@ -32,6 +51,7 @@ export interface TestCase {
   position: number;
   score?: Decimal;
   isSample?: boolean;
+  subtaskId?: string | null;
 }
 export interface Problem {
   id: string;
@@ -48,6 +68,8 @@ export interface Problem {
   maxScore: Decimal;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   testCases?: TestCase[];
+  subtasks?: Subtask[];
+  scoringEditable?: boolean;
 }
 export type Verdict =
   | 'QUEUED'
@@ -61,6 +83,7 @@ export type Verdict =
   | 'MEMORY_LIMIT_EXCEEDED'
   | 'SYSTEM_ERROR';
 export interface Result {
+  subtaskId?: string | null;
   id: string;
   name: string;
   status: Verdict;
@@ -87,6 +110,7 @@ export interface Submission {
   compilerOutput?: string;
   systemMessage?: string;
   results?: Result[];
+  subtaskResults?: SubtaskResult[] | null;
 }
 export interface Competition {
   id: string;
