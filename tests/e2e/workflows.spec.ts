@@ -308,6 +308,10 @@ test('speed leaderboard shows podium, profile photos and resilient fallbacks', a
   await page.goto('/competitions/c1');
   await expect(page.getByRole('heading', { name: 'เจ้าแห่งความเร็ว' })).toBeVisible();
   await expect(page.locator('.speed-podium-card')).toHaveCount(3);
+  await expect(page.getByRole('columnheader', { name: 'เวลาส่งคำตอบ' })).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: 'เวลาโปรแกรมรวม' })).toBeVisible();
+  await expect(page.locator('.speed-podium-card.place-1')).toContainText('23 ms');
+  await expect(page.locator('.speed-podium-card.place-1')).toContainText('8,192 KB');
   await expect(page.locator('.speed-current-user')).toContainText(user.displayName);
   await expect(page.locator('.speed-podium img')).toHaveAttribute('src', avatar);
   await expect(page.locator('.speed-podium img')).toHaveJSProperty('naturalWidth', 100);

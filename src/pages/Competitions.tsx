@@ -1,6 +1,17 @@
 import { Link, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Trophy, Users, BookOpen, RefreshCw, Flag, Zap, Crown, Timer } from 'lucide-react';
+import {
+  CalendarDays,
+  Trophy,
+  Users,
+  BookOpen,
+  RefreshCw,
+  Flag,
+  Zap,
+  Crown,
+  Timer,
+  MemoryStick,
+} from 'lucide-react';
 import { useAuth } from '../auth';
 import { api, json, message } from '../lib/api';
 import { dateTime, number, useResource, duration } from '../lib/hooks';
@@ -185,7 +196,7 @@ export function CompetitionDetail() {
       </section>
       {c.status !== 'DRAFT' && <LeaderboardPanel id={c.id} />}
       <p className="muted">
-        อันดับเรียงตามคะแนนรวม เวลาส่งคำตอบที่ดีที่สุด เวลาโปรแกรม และหน่วยความจำ ตามลำดับ
+        อันดับเรียงตามคะแนนรวมมากที่สุด → เวลาโปรแกรมรวมน้อยที่สุด → หน่วยความจำรวมน้อยที่สุด
       </p>
     </div>
   );
@@ -211,10 +222,6 @@ function RacerAvatar({ entry }: { entry: Racer }) {
       )}
     </span>
   );
-}
-
-function raceTime(entry: Racer) {
-  return duration(entry.completionTimeMs < 1e12 ? entry.completionTimeMs / 60000 : null, 'นาที');
 }
 
 function LeaderboardPanel({ id }: { id: string }) {
@@ -279,7 +286,10 @@ function LeaderboardPanel({ id }: { id: string }) {
                     {number(entry.totalScore)} <small>คะแนน</small>
                   </div>
                   <div className="speed-podium-time">
-                    <Timer size={14} /> {raceTime(entry)}
+                    <Timer size={14} /> {duration(entry.executionTimeMs)}
+                  </div>
+                  <div className="speed-podium-time">
+                    <MemoryStick size={14} /> {duration(entry.memoryUsedKb, 'KB')}
                   </div>
                   <div className="speed-podium-base" aria-hidden="true">
                     0{entry.rank}
@@ -291,7 +301,7 @@ function LeaderboardPanel({ id }: { id: string }) {
               <span>
                 <Flag size={15} /> ตารางอันดับ
               </span>
-              <small>คะแนน → เวลาส่ง → เวลาโปรแกรม → หน่วยความจำ</small>
+              <small>คะแนนมาก → รันเร็ว → ใช้หน่วยความจำน้อย</small>
             </div>
             <div className="table-scroll">
               <table className="speed-table">
@@ -302,9 +312,8 @@ function LeaderboardPanel({ id }: { id: string }) {
                     <th>ผู้เข้าแข่งขัน</th>
                     <th>คะแนน</th>
                     <th>สำเร็จ</th>
-                    <th>เวลาส่งคำตอบ</th>
-                    <th>เวลาโปรแกรม</th>
-                    <th>หน่วยความจำ</th>
+                    <th>เวลาโปรแกรมรวม</th>
+                    <th>หน่วยความจำรวม</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,7 +331,6 @@ function LeaderboardPanel({ id }: { id: string }) {
                       </td>
                       <td className="mono speed-score">{number(entry.totalScore)}</td>
                       <td>{entry.solvedCount} โจทย์</td>
-                      <td className="mono">{raceTime(entry)}</td>
                       <td className="mono">{duration(entry.executionTimeMs)}</td>
                       <td className="mono">{duration(entry.memoryUsedKb, 'KB')}</td>
                     </tr>
