@@ -393,8 +393,8 @@ function TestCaseEditor({
       ['solutionFile', '.sol'],
     ]) {
       const file = data.get(field) as File;
-      if (!file?.name.toLowerCase().endsWith(ext) || file.size > 2 * 1024 * 1024) {
-        setError(`ไฟล์ ${ext} ต้องมีขนาดไม่เกิน 2 MB`);
+      if (!file?.name.toLowerCase().endsWith(ext) || file.size > 10 * 1024 * 1024) {
+        setError(`ไฟล์ ${ext} ต้องมีขนาดไม่เกิน 10 MB`);
         return;
       }
     }
@@ -530,10 +530,10 @@ function TestCaseEditor({
           </Field>
         </div>
         <div className="form-row">
-          <Field label="ไฟล์ข้อมูลนำเข้า (.in)" hint="UTF-8 ขนาดไม่เกิน 2 MB">
+          <Field label="ไฟล์ข้อมูลนำเข้า (.in)" hint="UTF-8 ขนาดไม่เกิน 10 MB">
             <input name="inputFile" type="file" accept=".in" required />
           </Field>
-          <Field label="ไฟล์คำตอบ (.sol)" hint="UTF-8 ขนาดไม่เกิน 2 MB">
+          <Field label="ไฟล์คำตอบ (.sol)" hint="UTF-8 ขนาดไม่เกิน 10 MB">
             <input name="solutionFile" type="file" accept=".sol" required />
           </Field>
         </div>
@@ -870,7 +870,7 @@ function ZipTestCaseUpload({
             </Field>
             <Field
               label="ไฟล์ ZIP ของชุดทดสอบ"
-              hint="ZIP ≤ 20 MB · แต่ละไฟล์ ≤ 2 MB · รวมหลังแตก ≤ 50 MB · สูงสุด 500 เทส"
+              hint="ZIP ≤ 20 MB · แต่ละไฟล์ ≤ 10 MB · รวมหลังแตก ≤ 50 MB · สูงสุด 500 เทส"
             >
               <input
                 name="zipFile"
