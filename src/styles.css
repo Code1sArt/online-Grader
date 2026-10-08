@@ -2814,3 +2814,16 @@ legend {
   font-size: 11px;
   margin-top: 12px;
 }
+
+.test-case-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0;
+  font-size: 12px;
+}
+.test-case-selected {
+  background: #eef7f2;
+}

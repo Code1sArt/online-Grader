@@ -517,3 +517,66 @@ test('admin bulk imports a ZIP into a subtask and preserves errors without addin
   await expect(page.getByRole('alert')).toContainText('ไฟล์ต้องเป็น .zip');
   expect(imports).toBe(2);
 });
+
+test('admin selects multiple test cases to publish examples without changing scoring', async ({
+  page,
+}, info) => {
+  await mockApi(page, true);
+  const state = {
+    ...problem,
+    scoringEditable: false,
+    subtasks: [{ id: 'g1', name: 'กลุ่มทดสอบ', position: 1, score: 100, description: 'n ≤ 100' }],
+    testCases: ['เล็ก', 'กลาง', 'ใหญ่'].map((name, index) => ({
+      ...problem.testCases![0],
+      id: `t${index + 1}`,
+      name,
+      position: index + 1,
+      isSample: false,
+      subtaskId: 'g1',
+      score: 0,
+    })),
+  };
+  await page.route('**/api/problems/p1', (route) => route.fulfill({ json: state }));
+  let attempts = 0;
+  await page.route('**/api/problems/p1/test-cases/samples', async (route) => {
+    attempts += 1;
+    const payload = route.request().postDataJSON() as { testCaseIds: string[]; isSample: boolean };
+    if (attempts === 1) {
+      await route.fulfill({ status: 400, json: { message: 'บันทึกไม่ได้ กรุณาลองอีกครั้ง' } });
+      return;
+    }
+    if (attempts === 2) expect(payload).toEqual({ testCaseIds: ['t1', 't2'], isSample: true });
+    state.testCases.forEach((test) => {
+      if (payload.testCaseIds.includes(test.id)) test.isSample = payload.isSample;
+    });
+    await route.fulfill({ json: { count: payload.testCaseIds.length, isSample: payload.isSample } });
+  });
+  await page.goto('/admin/problems/p1');
+  const publish = page.getByRole('button', { name: 'ตั้งเป็นตัวอย่าง', exact: true });
+  await expect(publish).toBeDisabled();
+  await page.getByRole('checkbox', { name: 'เลือกเทส เล็ก', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'เลือกเทส กลาง', exact: true }).check();
+  await expect(page.getByRole('checkbox', { name: 'เลือกเทสทั้งหมด', exact: true })).toHaveJSProperty(
+    'indeterminate',
+    true,
+  );
+  await publish.click();
+  await expect(page.getByRole('alert')).toContainText('บันทึกไม่ได้');
+  await expect(page.getByRole('checkbox', { name: 'เลือกเทส เล็ก', exact: true })).toBeChecked();
+  await publish.click();
+  await expect(page.getByText('ตัวอย่างเผยแพร่', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('เทสลับ', { exact: true })).toHaveCount(1);
+  await expect(publish).toBeDisabled();
+  expect(state.testCases.every((test) => test.subtaskId === 'g1' && test.score === 0)).toBe(true);
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/test-case-samples-${info.project.name}.png`, fullPage: true });
+  await page.goto('/problems/p1');
+  await expect(page.getByRole('heading', { name: 'ตัวอย่างที่ 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ตัวอย่างที่ 3', exact: true })).toHaveCount(0);
+  await page.goto('/admin/problems/p1');
+  await page.getByRole('checkbox', { name: 'เลือกเทสทั้งหมด', exact: true }).check();
+  await page.getByRole('button', { name: 'ตั้งเป็นเทสลับ', exact: true }).click();
+  await expect(page.getByText('เทสลับ', { exact: true })).toHaveCount(3);
+  await page.goto('/problems/p1');
+  await expect(page.getByText('โจทย์นี้ไม่มีตัวอย่างเผยแพร่')).toBeVisible();
+});

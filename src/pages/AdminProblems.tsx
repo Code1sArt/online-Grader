@@ -374,6 +374,8 @@ function TestCaseEditor({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [subtaskId, setSubtaskId] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const tests = problem.testCases || [];
   const total =
     (problem.subtasks || []).reduce((sum, group) => sum + Number(group.score), 0) +
     (problem.testCases || [])
@@ -424,6 +426,23 @@ function TestCaseEditor({
       setBusy(false);
     }
   }
+  async function setSamples(isSample: boolean) {
+    if (busy || !selectedIds.length) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(
+        `/problems/${problem.id}/test-cases/samples`,
+        json('PATCH', { testCaseIds: selectedIds, isSample }),
+      );
+      setSelectedIds([]);
+      reload();
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <section className="panel form-panel">
       <div className="panel-title flush">
@@ -433,11 +452,50 @@ function TestCaseEditor({
         </span>
       </div>
       <ErrorBox error={error} />
+      {!!tests.length && (
+        <div className="test-case-selection">
+          <span>
+            เลือก {number(selectedIds.length)} / {number(tests.length)} เทส
+          </span>
+          <div className="button-row">
+            <button
+              className="button secondary"
+              disabled={busy || !selectedIds.length}
+              onClick={() => void setSamples(true)}
+            >
+              <Eye size={16} />
+              ตั้งเป็นตัวอย่าง
+            </button>
+            <button
+              className="text-button"
+              disabled={busy || !selectedIds.length}
+              onClick={() => void setSamples(false)}
+            >
+              ตั้งเป็นเทสลับ
+            </button>
+          </div>
+        </div>
+      )}
       {problem.testCases?.length ? (
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="เลือกเทสทั้งหมด"
+                    disabled={busy}
+                    checked={selectedIds.length === tests.length}
+                    ref={(node) => {
+                      if (node)
+                        node.indeterminate = selectedIds.length > 0 && selectedIds.length < tests.length;
+                    }}
+                    onChange={(event) =>
+                      setSelectedIds(event.target.checked ? tests.map((test) => test.id) : [])
+                    }
+                  />
+                </th>
                 <th>ลำดับ</th>
                 <th>ชื่อ</th>
                 <th>การแสดงผล</th>
@@ -447,7 +505,22 @@ function TestCaseEditor({
             </thead>
             <tbody>
               {problem.testCases.map((t) => (
-                <tr key={t.id}>
+                <tr key={t.id} className={selectedIds.includes(t.id) ? 'test-case-selected' : undefined}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`เลือกเทส ${t.name}`}
+                      disabled={busy}
+                      checked={selectedIds.includes(t.id)}
+                      onChange={(event) =>
+                        setSelectedIds(
+                          event.target.checked
+                            ? [...selectedIds, t.id]
+                            : selectedIds.filter((id) => id !== t.id),
+                        )
+                      }
+                    />
+                  </td>
                   <td>{t.position}</td>
                   <td>{t.name}</td>
                   <td>{t.isSample ? 'ตัวอย่างเผยแพร่' : 'เทสลับ'}</td>
