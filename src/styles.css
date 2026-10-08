@@ -2789,3 +2789,28 @@ legend {
 .test-assignment .error-box {
   width: 100%;
 }
+
+.zip-test-upload {
+  margin-top: 24px;
+  padding: 20px;
+  background: #eef7f2;
+  border: 1px dashed #a2cbb7;
+  border-radius: 12px;
+}
+.zip-test-upload h3 {
+  font-size: 16px;
+}
+.zip-test-upload p {
+  font-size: 12px;
+  color: #536f5e;
+  margin-top: 7px;
+}
+.zip-test-upload form {
+  margin-top: 18px;
+}
+.zip-test-upload small {
+  display: block;
+  color: #536f5e;
+  font-size: 11px;
+  margin-top: 12px;
+}

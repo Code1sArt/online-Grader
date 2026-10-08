@@ -459,3 +459,61 @@ test('submission shows all-or-nothing subtask scores and group performance', asy
   await noOverflow(page);
   await page.screenshot({ path: `test-results/subtasks-result-${info.project.name}.png`, fullPage: true });
 });
+
+test('admin bulk imports a ZIP into a subtask and preserves errors without adding partial tests', async ({
+  page,
+}, info) => {
+  await mockApi(page, true);
+  const state = {
+    ...problem,
+    status: 'DRAFT',
+    scoringEditable: true,
+    subtasks: [{ id: 'g1', name: 'ข้อมูลเล็ก', score: 100, position: 1, description: 'n ≤ 100' }],
+    testCases: [{ ...problem.testCases![0], score: 0, subtaskId: null as string | null }],
+  };
+  await page.route('**/api/problems/p1', (route) => route.fulfill({ json: state }));
+  let imports = 0;
+  await page.route('**/api/problems/p1/test-cases/zip', async (route) => {
+    imports += 1;
+    expect(route.request().headers()['content-type']).toContain('multipart/form-data; boundary=');
+    expect(route.request().postData()).toContain('name="subtaskId"\r\n\r\ng1');
+    expect(route.request().postData()).toContain('filename="subtask-cases.zip"');
+    if (imports === 1) {
+      await route.fulfill({ status: 400, json: { message: 'เทส 02 ต้องมีไฟล์ .in และ .sol ชื่อเดียวกัน' } });
+      return;
+    }
+    for (let i = 1; i <= 2; i++)
+      state.testCases.push({
+        ...state.testCases[0],
+        id: `zip-${i}`,
+        name: `0${i}`,
+        position: i + 1,
+        subtaskId: 'g1',
+        isSample: false,
+      });
+    await route.fulfill({ json: { count: 2, subtaskId: 'g1', startPosition: 2 } });
+  });
+  await page.goto('/admin/problems/p1');
+  await page.getByLabel('Subtask สำหรับ ZIP', { exact: true }).selectOption('g1');
+  await page.getByLabel(/ไฟล์ ZIP ของชุดทดสอบ/).setInputFiles('tests/fixtures/subtask-cases.zip');
+  await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('เทส 02 ต้องมีไฟล์');
+  expect(state.testCases).toHaveLength(1);
+  await expect(page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('เพิ่ม 2 เทสจาก ZIP เข้า subtask แล้ว');
+  await expect(page.locator('.subtask-card')).toContainText('2 เทส');
+  expect(state.testCases).toHaveLength(3);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await noOverflow(page);
+  await page
+    .locator('.zip-test-upload')
+    .screenshot({ path: `test-results/subtask-zip-${info.project.name}.png` });
+  await page
+    .getByLabel(/ไฟล์ ZIP ของชุดทดสอบ/)
+    .setInputFiles({ name: 'not-zip.in', mimeType: 'text/plain', buffer: Buffer.from('1') });
+  await page.getByLabel('Subtask สำหรับ ZIP', { exact: true }).selectOption('g1');
+  await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('ไฟล์ต้องเป็น .zip');
+  expect(imports).toBe(2);
+});

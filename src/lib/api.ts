@@ -13,16 +13,17 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   const token = tokenStore.get();
   if (token) headers.set('Authorization', `Bearer ${token}`);
   let response: Response;
-  const timeout = AbortSignal.timeout(20000);
+  const { timeoutMs = 20000, ...requestOptions } = options;
+  const timeout = AbortSignal.timeout(timeoutMs);
   try {
     response = await fetch(`${base}${path}`, {
-      ...options,
+      ...requestOptions,
       headers,
       signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
     });

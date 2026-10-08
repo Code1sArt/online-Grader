@@ -92,7 +92,7 @@ location /api/ {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    client_max_body_size 5m;
+    client_max_body_size 25m;
 }
 location /assets/ {
     try_files $uri =404;
@@ -132,3 +132,11 @@ Repository นี้มี GitHub Actions ที่ `.github/workflows/deploy-pl
 5. หน้าผลตรวจแสดงคะแนน สถานะ จำนวนเทสที่ผ่าน เวลารวม และหน่วยความจำสูงสุดแยกกลุ่ม คะแนนรวมส่งต่อไปยัง leaderboard ตามน้ำหนักคะแนนโจทย์ในการแข่งขัน
 
 หลังมีคำตอบ ระบบล็อกการจัดกลุ่มและเทสของโจทย์ที่ใช้ subtask เพื่อรักษาผลคะแนนเดิม หากต้องเปลี่ยนเกณฑ์ให้สร้างโจทย์ใหม่ ผลรายกลุ่มถูกบันทึกไว้กับคำตอบ โจทย์เดิมที่ไม่มี subtask ยังใช้คะแนนรายเทสได้เหมือนเดิม Subtask วัดความสามารถในการผ่านชุดข้อมูลที่กำหนด ไม่ได้ยืนยัน Big O ของโค้ด
+
+### นำเข้าเทสหลายชุดด้วย ZIP
+
+ในหน้าแก้ไขโจทย์ เลื่อนมาที่ “เพิ่มหลายเทสด้วย ZIP” เลือก subtask แล้วแนบ ZIP ที่มีคู่ไฟล์ชื่อเดียวกันในโฟลเดอร์เดียวกัน เช่น `01.in` + `01.sol`, `02.in` + `02.sol` รองรับโฟลเดอร์ย่อย จัดลำดับตามชื่อแบบตัวเลข และต่อเลขลำดับจากเทสเดิม ทุกคู่จะเป็นเทสลับที่ใช้คะแนนของกลุ่ม
+
+ZIP ไม่เกิน 20 MB, ไฟล์แต่ละไฟล์หลังแตกไม่เกิน 2 MB, รวมหลังแตกไม่เกิน 50 MB และไม่เกิน 500 เทส ไฟล์ต้องเป็น UTF-8 ไม่ตั้งรหัสผ่าน หากไฟล์ขาดคู่ ชื่อซ้ำ หรือ ZIP เสียหาย จะไม่บันทึกเทสจากชุดนั้นเลย
+
+ฟีเจอร์นี้ต้อง deploy ทั้ง frontend และ API รุ่นที่รองรับ `/api/problems/:id/test-cases/zip` ไม่ต้องเพิ่ม database migration ใหม่ ตั้งขนาด request body ของ reverse proxy/Plesk ให้รองรับ multipart 20 MB เช่น Nginx `client_max_body_size 25m;`

@@ -78,6 +78,7 @@ export function AdminProblemEditor() {
   return id ? <ExistingProblem id={id} /> : <ProblemEditor />;
 }
 function ExistingProblem({ id }: { id: string }) {
+  const [zipNotice, setZipNotice] = useState('');
   const { data, loading, error, reload } = useResource<Problem>(`/problems/${id}`);
   if (loading) return <Loading />;
   if (!data)
@@ -86,9 +87,30 @@ function ExistingProblem({ id }: { id: string }) {
         <ErrorBox error={error} retry={reload} />
       </div>
     );
-  return <ProblemEditor key={id} problem={data} reload={reload} />;
+  return (
+    <ProblemEditor
+      key={id}
+      problem={data}
+      reload={reload}
+      zipNotice={zipNotice}
+      onZipImported={(count) => {
+        setZipNotice(`เพิ่ม ${number(count)} เทสจาก ZIP เข้า subtask แล้ว`);
+        reload();
+      }}
+    />
+  );
 }
-function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => void }) {
+function ProblemEditor({
+  problem,
+  reload,
+  zipNotice,
+  onZipImported,
+}: {
+  problem?: Problem;
+  reload?: () => void;
+  zipNotice?: string;
+  onZipImported?: (count: number) => void;
+}) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -161,6 +183,11 @@ function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => 
         บันทึกเนื้อหา แล้วเพิ่มเทสเคสให้คะแนนรวมตรงกับคะแนนเต็ม
       </Heading>
       <ErrorBox error={error} />
+      {zipNotice && (
+        <div className="notice" role="status">
+          {zipNotice}
+        </div>
+      )}
       {success && (
         <div className="notice" role="status">
           {success}
@@ -290,7 +317,7 @@ function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => 
       {problem && (
         <>
           <SubtaskEditor problem={problem} reload={reload!} />
-          <TestCaseEditor problem={problem} reload={reload!} />
+          <TestCaseEditor problem={problem} reload={reload!} onZipImported={onZipImported} />
           <section className="panel publish-panel">
             <div>
               <h2>การเผยแพร่</h2>
@@ -335,7 +362,15 @@ function ProblemEditor({ problem, reload }: { problem?: Problem; reload?: () => 
     </div>
   );
 }
-function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => void }) {
+function TestCaseEditor({
+  problem,
+  reload,
+  onZipImported,
+}: {
+  problem: Problem;
+  reload: () => void;
+  onZipImported?: (count: number) => void;
+}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [subtaskId, setSubtaskId] = useState('');
@@ -437,6 +472,12 @@ function TestCaseEditor({ problem, reload }: { problem: Problem; reload: () => v
       ) : (
         <p className="muted">ยังไม่มีเทสเคส เพิ่มคู่ไฟล์ด้านล่างเพื่อเริ่มต้น</p>
       )}
+      <ZipTestCaseUpload
+        problem={problem}
+        disabled={busy || locked}
+        onBusyChange={setBusy}
+        onImported={onZipImported ?? (() => reload())}
+      />
       <form className="upload-form" onSubmit={(e) => void upload(e)}>
         <Field
           label="Subtask ของเทสนี้"
@@ -750,5 +791,104 @@ function TestCaseAssignment({
       </button>
       <ErrorBox error={error} />
     </form>
+  );
+}
+
+function ZipTestCaseUpload({
+  problem,
+  disabled,
+  onBusyChange,
+  onImported,
+}: {
+  problem: Problem;
+  disabled: boolean;
+  onBusyChange: (busy: boolean) => void;
+  onImported: (count: number) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const groups = problem.subtasks || [];
+  async function upload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled || busy) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const file = data.get('zipFile') as File;
+    if (!file?.name.toLowerCase().endsWith('.zip') || file.size > 20 * 1024 * 1024) {
+      setError('ไฟล์ต้องเป็น .zip ขนาดไม่เกิน 20 MB');
+      return;
+    }
+    setError('');
+    setBusy(true);
+    onBusyChange(true);
+    try {
+      const result = await api<{ count: number }>(`/problems/${problem.id}/test-cases/zip`, {
+        method: 'POST',
+        body: data,
+        timeoutMs: 120000,
+      });
+      form.reset();
+      onImported(result.count);
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+      onBusyChange(false);
+    }
+  }
+  return (
+    <div className="zip-test-upload">
+      <div>
+        <h3>เพิ่มหลายเทสด้วย ZIP</h3>
+        <p>
+          จับคู่ไฟล์ชื่อเดียวกันในโฟลเดอร์เดียวกัน เช่น 01.in + 01.sol
+          ระบบจะเพิ่มทุกคู่เป็นเทสลับและต่อเลขลำดับให้อัตโนมัติ
+        </p>
+      </div>
+      {!groups.length ? (
+        <p className="muted">เพิ่ม subtask ด้านบนก่อนนำเข้า ZIP</p>
+      ) : (
+        <form onSubmit={(event) => void upload(event)}>
+          <div className="form-row">
+            <Field label="Subtask สำหรับ ZIP">
+              <select
+                name="subtaskId"
+                aria-label="Subtask สำหรับ ZIP"
+                required
+                defaultValue=""
+                disabled={disabled || busy}
+              >
+                <option value="" disabled>
+                  เลือก subtask
+                </option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="ไฟล์ ZIP ของชุดทดสอบ"
+              hint="ZIP ≤ 20 MB · แต่ละไฟล์ ≤ 2 MB · รวมหลังแตก ≤ 50 MB · สูงสุด 500 เทส"
+            >
+              <input
+                name="zipFile"
+                type="file"
+                accept=".zip,application/zip"
+                required
+                disabled={disabled || busy}
+              />
+            </Field>
+          </div>
+          <ErrorBox error={error} />
+          <button className="button primary" disabled={disabled || busy}>
+            <Upload size={17} />
+            {busy ? 'กำลังตรวจและนำเข้า ZIP…' : 'นำเข้า ZIP เข้า subtask'}
+          </button>
+          <small>ตรวจทุกไฟล์ก่อนบันทึก หากมีข้อผิดพลาดจะไม่เพิ่มเทสจาก ZIP ชุดนี้</small>
+        </form>
+      )}
+    </div>
   );
 }
