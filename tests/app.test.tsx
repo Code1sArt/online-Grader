@@ -37,11 +37,13 @@ let joined: boolean;
 let playgroundEnabled: boolean;
 let groupedSubmission: boolean;
 let privacyRequired: boolean;
+let memberDeleted: boolean;
 beforeEach(() => {
   requests = [];
   role = 'USER';
   groupedSubmission = false;
   privacyRequired = false;
+  memberDeleted = false;
   failProblems = false;
   joined = false;
   playgroundEnabled = false;
@@ -63,28 +65,32 @@ beforeEach(() => {
           : path === '/auth/privacy'
             ? {
                 title: 'ความเป็นส่วนตัวและเงื่อนไขการใช้งาน',
-                version: '2026-10-09-v1',
+                version: '2026-10-09-v2',
                 paragraphs: ['เก็บ IP 90 วัน'],
               }
             : path === '/auth/consent'
               ? ((privacyRequired = false), { ...user, role, requiresPrivacyAcceptance: false })
               : path === '/members'
                 ? {
-                    total: 1,
+                    total: memberDeleted ? 0 : 1,
                     pageSize: 50,
-                    items: [
-                      {
-                        ...user,
-                        isActive: true,
-                        deletedAt: null,
-                        createdAt: submission.submittedAt,
-                        usage: { graderRunCount: 3 },
-                        _count: { submissions: 2 },
-                      },
-                    ],
+                    items: memberDeleted
+                      ? []
+                      : [
+                          {
+                            ...user,
+                            isActive: true,
+                            deletedAt: null,
+                            createdAt: submission.submittedAt,
+                            usage: { graderRunCount: 3 },
+                            _count: { submissions: 2 },
+                          },
+                        ],
                   }
                 : path === `/members/${user.id}/status` || path === `/members/${user.id}`
-                  ? {}
+                  ? options.method === 'DELETE'
+                    ? ((memberDeleted = true), {})
+                    : {}
                   : path === `/members/${user.id}/history`
                     ? {
                         user: { ...user, usage: { loginCount: 1, playgroundCount: 2, graderRunCount: 3 } },
@@ -222,7 +228,7 @@ describe('NR Grader user workflows', () => {
     expect(requests.findIndex((row) => row.path === '/leaderboard')).toBeGreaterThan(consent);
     expect(JSON.parse(requests[consent].options.body as string)).toEqual({
       accepted: true,
-      version: '2026-10-09-v1',
+      version: '2026-10-09-v2',
     });
   });
   it('declining privacy signs out without loading member data', async () => {
@@ -243,6 +249,23 @@ describe('NR Grader user workflows', () => {
     });
     await userEvent.click(await screen.findByRole('link', { name: 'ดูประวัติการใช้งาน' }));
     expect(await screen.findByText('203.0.113.10')).toBeInTheDocument();
+  });
+
+  it('confirms permanent member deletion and removes the member from the list', async () => {
+    role = 'ADMIN';
+    mount('/admin/members');
+    expect(screen.queryByRole('option', { name: 'สมาชิกที่ลบแล้ว' })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'ลบสมาชิก', exact: true }));
+    expect(Swal.fire).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('สมัครใหม่ด้วย Google เดิมได้') }),
+    );
+    await waitFor(() =>
+      expect(
+        requests.some((row) => row.path === `/members/${user.id}` && row.options.method === 'DELETE'),
+      ).toBe(true),
+    );
+    expect(await screen.findByText('ไม่พบสมาชิก')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ลบสมาชิก', exact: true })).not.toBeInTheDocument();
   });
   it('groups submissions by problem and opens its history', async () => {
     mount('/submissions');

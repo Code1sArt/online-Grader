@@ -43,7 +43,7 @@ export function AdminMembers() {
       await api(`/members/${member.id}${remove ? '' : '/status'}`, {
         ...json(remove ? 'DELETE' : 'PATCH', remove ? undefined : { isActive: !member.isActive }),
         confirmation: remove
-          ? `ลบสมาชิก ${member.displayName} ออกจากการใช้งาน? บัญชีจะเข้าไม่ได้ และประวัติการเรียนกับโค้ดยังคงเก็บไว้ตรวจสอบ`
+          ? `ลบสมาชิก ${member.displayName} ถาวร พร้อมคะแนน โค้ด และประวัติการใช้งานทั้งหมด? กู้คืนไม่ได้ แต่สมัครใหม่ด้วย Google เดิมได้`
           : `${member.isActive ? 'บล็อก' : 'ปลดบล็อก'}สมาชิก ${member.displayName}?`,
       });
       reload();
@@ -84,7 +84,6 @@ export function AdminMembers() {
           <option value="all">สมาชิกปัจจุบันทั้งหมด</option>
           <option value="active">ใช้งานได้</option>
           <option value="blocked">ถูกบล็อก</option>
-          <option value="deleted">สมาชิกที่ลบแล้ว</option>
         </select>
       </form>
       <section className="panel">
