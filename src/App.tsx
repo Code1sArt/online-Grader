@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes, Link } from 'react-router-dom';
+import { Route, Routes, Link } from 'react-router-dom';
 import { Protected } from './auth';
 import { Layout } from './components/Layout';
 import { Empty, Loading } from './components/ui';
+import { Home } from './pages/Home';
+import { AdminMembers, MemberHistory } from './pages/AdminMembers';
 import { Login } from './pages/Login';
 import { Problems } from './pages/Problems';
 import { SubmissionOverview, SubmissionHistory, AdminRespondents } from './pages/SubmissionBrowser';
@@ -36,7 +38,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route element={<Protected />}>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/problems" replace />} />
+          <Route index element={<Home />} />
           <Route path="problems" element={<Problems />} />
           <Route path="problems/:id" element={<Workspace />} />
           <Route path="submissions" element={<Submissions />} />
@@ -61,6 +63,8 @@ function AppRoutes() {
               path="admin/submissions/problems/:problemId/users/:userId/:id"
               element={<SubmissionDetail />}
             />
+            <Route path="admin/members" element={<AdminMembers />} />
+            <Route path="admin/members/:id" element={<MemberHistory />} />
             <Route path="admin/settings" element={<AdminSettings />} />
           </Route>
         </Route>

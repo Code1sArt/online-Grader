@@ -80,7 +80,7 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
             {problem.constraints && (
               <section>
                 <h2>ข้อจำกัด</h2>
-                <div className="markdown">
+                <div className="markdown constraints-markdown">
                   <Markdown>{problem.constraints}</Markdown>
                 </div>
               </section>

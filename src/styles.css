@@ -2827,3 +2827,89 @@ legend {
 .test-case-selected {
   background: #eef7f2;
 }
+
+.constraints-markdown {
+  white-space: pre-line;
+}
+.privacy-popup .swal2-html-container {
+  text-align: left;
+  white-space: pre-line;
+  font-size: 14px;
+  max-height: 55vh;
+  overflow: auto;
+}
+.home-score-note {
+  color: var(--race-muted);
+  padding: 0 32px;
+  font-size: 13px;
+}
+.speed-header h1 {
+  font-size: clamp(25px, 4vw, 34px);
+  margin: 9px 0 5px;
+}
+.home-member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.home-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+.member-filters,
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.member-filters input {
+  flex: 1;
+  min-width: 160px;
+}
+.member-actions {
+  margin-bottom: 0;
+}
+
+.speed-table tr.is-me td {
+  background: rgba(217, 255, 124, 0.08);
+}
+
+.home-leaderboard .speed-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.home-leaderboard .speed-table th:first-child {
+  width: 18%;
+}
+.home-leaderboard .speed-table th:last-child {
+  width: 26%;
+}
+.home-leaderboard .speed-table td:nth-child(2) {
+  white-space: normal;
+}
+.home-member strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.home-member .racer-avatar {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .home-leaderboard .speed-table th,
+  .home-leaderboard .speed-table td {
+    padding: 14px 10px;
+    font-size: 12px;
+  }
+  .home-member {
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .home-leaderboard .speed-table td:last-child {
+    white-space: normal;
+  }
+}

@@ -152,3 +152,13 @@ Subtask results now show group verdicts only. The judge stops each group at its 
 The submissions page groups attempts by problem and opens paginated history (50 attempts per page). Admins use `/admin/submissions` to browse problems, respondents ranked by highest active score, each respondent's history, and individual source code. Score resets apply to one problem or one respondent within that problem, including competition submissions. Reset attempts retain their original verdict and code, display zero points, and no longer contribute to leaderboards. New attempts can earn points normally; in-flight judging cannot remove a reset marker.
 
 Deploy the API and apply its `20261009090000_submission_score_reset` migration before releasing this frontend. SweetAlert2 confirms user-initiated writes, deleting records, replacing draft code, and signing out. Cancelled operations send no request; automatic session expiry still clears the expired session immediately.
+
+## Home, members and privacy
+
+Home displays global total scores: the best active judged score on each published problem, counted once across practice and competitions. Reset attempts and deleted problems are excluded. Blocked/deleted members are hidden; equal scores share a rank. Profile names/photos are shown only after privacy acceptance.
+
+Admins can delete problems/competitions from their management lists and manage members at `/admin/members`. Deletion removes records from active use while retaining submission history and source code. Blocking or deleting a member invalidates access on the next API request, including previously issued tokens. Admin accounts cannot be blocked/deleted through this page.
+
+New and existing members without the current consent version must accept the Thai Privacy/Terms popup before accessing protected pages. Declining signs out. The API enforces the same requirement. IP event history is visible only to admins, covers login/submission/Playground activity, and expires after 90 days. Lifetime counters start when tracking is enabled; grader usage counts runner invocations, including failures, and skips unexecuted tests.
+
+Apply API migration `20261009100000_members_privacy_activity` before releasing this frontend. The API performs hourly expired-log cleanup while running. Configure trusted reverse proxy addresses on the API for accurate client IPs; see the API deployment notes. Constraints accept Enter/newlines and preserve them in problem display.

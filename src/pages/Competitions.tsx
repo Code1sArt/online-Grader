@@ -203,7 +203,7 @@ export function CompetitionDetail() {
 }
 type Racer = Leaderboard['entries'][number];
 
-function RacerAvatar({ entry }: { entry: Racer }) {
+export function RacerAvatar({ entry }: { entry: Pick<Racer, 'displayName' | 'avatarUrl'> }) {
   const [failedUrl, setFailedUrl] = useState<string>();
   return (
     <span className="racer-avatar">

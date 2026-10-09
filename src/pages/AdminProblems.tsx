@@ -8,6 +8,24 @@ import type { Language, Problem, Subtask, TestCase } from '../types';
 
 export function AdminProblems() {
   const { data, loading, error, reload } = useResource<Problem[]>('/problems');
+  const [actionError, setActionError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function remove(problem: Problem) {
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await api(`/problems/${problem.id}`, {
+        method: 'DELETE',
+        confirmation: `ลบโจทย์ ${problem.title} ออกจากคลังและการแข่งขัน? คะแนนข้อนี้จะไม่นับใน Home และประวัติการส่งยังคงอยู่`,
+      });
+      reload();
+    } catch (caught) {
+      setActionError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="page">
       <Heading
@@ -22,6 +40,7 @@ export function AdminProblems() {
       >
         สร้างโจทย์ กำหนดคะแนน และเตรียมชุดทดสอบ
       </Heading>
+      <ErrorBox error={actionError} />
       <section className="panel">
         <ErrorBox error={error} retry={reload} />
         {loading ? (
@@ -59,6 +78,14 @@ export function AdminProblems() {
                           <Pencil size={15} />
                           แก้ไข / เทสเคส
                         </Link>
+                        <button
+                          className="button secondary small"
+                          disabled={busy}
+                          onClick={() => void remove(p)}
+                        >
+                          <Trash2 size={15} />
+                          ลบโจทย์
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -237,9 +264,9 @@ function ProblemEditor({
           <Field label="ข้อจำกัดของข้อมูล">
             <textarea
               name="constraints"
-              rows={3}
+              rows={6}
               defaultValue={problem?.constraints}
-              placeholder="เช่น 1 ≤ N ≤ 100,000"
+              placeholder={'เช่น 1 ≤ N ≤ 100,000\nกด Enter เพื่อขึ้นบรรทัดใหม่'}
             />
           </Field>
         </section>

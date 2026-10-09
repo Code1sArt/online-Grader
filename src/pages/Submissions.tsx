@@ -70,6 +70,9 @@ export function SubmissionDetail() {
               กำลังตรวจคำตอบ หน้านี้จะอัปเดตผลให้อัตโนมัติ
             </div>
           )}
+          {data.problem.deletedAt && (
+            <div className="notice">โจทย์นี้ถูกลบจากการใช้งานแล้ว ประวัติและโค้ดยังดูได้</div>
+          )}
           {data.scoreResetAt && (
             <div className="notice">คะแนนของคำตอบนี้ถูกรีเซ็ตแล้ว · ประวัติและโค้ดยังคงอยู่</div>
           )}
@@ -189,9 +192,15 @@ export function SubmissionDetail() {
           )}
           <Link
             className="button primary"
-            to={`/problems/${data.problem.id}${data.competitionId ? `?competitionId=${data.competitionId}` : ''}`}
+            to={
+              data.problem.deletedAt
+                ? userId
+                  ? `/admin/submissions/problems/${problemId}/users/${userId}`
+                  : `/submissions/problems/${data.problem.id}`
+                : `/problems/${data.problem.id}${data.competitionId && !data.competition?.deletedAt ? `?competitionId=${data.competitionId}` : ''}`
+            }
           >
-            กลับไปแก้คำตอบ
+            {data.problem.deletedAt ? 'กลับไปประวัติคำตอบ' : 'กลับไปแก้คำตอบ'}
           </Link>
         </>
       )}

@@ -16,7 +16,9 @@ export function Problems() {
   const [filter, setFilter] = useState('all');
   const problems = (data || []).filter((p) => p.status === 'PUBLISHED');
   const solved = new Set(
-    (history.data || []).filter((s) => s.status === 'ACCEPTED' && !s.scoreResetAt).map((s) => s.problem.id),
+    (history.data || [])
+      .filter((s) => s.status === 'ACCEPTED' && !s.scoreResetAt && !s.problem.deletedAt)
+      .map((s) => s.problem.id),
   );
   const attempted = new Set((history.data || []).map((s) => s.problem.id));
   const filtered = problems.filter(

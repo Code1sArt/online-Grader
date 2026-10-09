@@ -1,6 +1,8 @@
 import { confirmAction } from '../lib/dialogs';
 import {
   BookOpen,
+  Crown,
+  Users,
   ChevronRight,
   CodeXml,
   History,
@@ -34,6 +36,7 @@ export function Layout() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const links = [
+    { to: '/', label: 'Home / อันดับคะแนนรวม', icon: Crown },
     { to: '/problems', label: 'คลังโจทย์', icon: BookOpen },
     { to: '/submissions', label: 'การส่งคำตอบ', icon: History },
     { to: '/competitions', label: 'การแข่งขัน', icon: Trophy },
@@ -41,7 +44,8 @@ export function Layout() {
   ];
   const page = location.pathname.startsWith('/admin')
     ? 'ผู้ดูแลระบบ'
-    : links.find((l) => location.pathname.startsWith(l.to))?.label || 'พื้นที่ทำงาน';
+    : links.find((l) => (l.to === '/' ? location.pathname === '/' : location.pathname.startsWith(l.to)))
+        ?.label || 'พื้นที่ทำงาน';
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -49,13 +53,13 @@ export function Layout() {
       </a>
       {open && <button className="sidebar-shade" aria-label="ปิดเมนูนำทาง" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <NavLink to="/problems" className="brand-link" onClick={() => setOpen(false)}>
+        <NavLink to="/" className="brand-link" onClick={() => setOpen(false)}>
           <Brand />
         </NavLink>
         <div className="nav-label">พื้นที่เรียนรู้</div>
         <nav aria-label="เมนูหลัก">
           {links.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={() => setOpen(false)}>
+            <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}>
               <Icon size={20} />
               <span>{label}</span>
             </NavLink>
@@ -74,6 +78,10 @@ export function Layout() {
               <NavLink to="/admin/submissions" onClick={() => setOpen(false)}>
                 <History size={20} />
                 คำตอบของผู้เรียน
+              </NavLink>
+              <NavLink to="/admin/members" onClick={() => setOpen(false)}>
+                <Users size={20} />
+                จัดการสมาชิก
               </NavLink>
               <NavLink to="/admin/settings" onClick={() => setOpen(false)}>
                 <SlidersHorizontal size={20} />

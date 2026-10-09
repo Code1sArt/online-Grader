@@ -6,6 +6,9 @@ export interface User {
   displayName: string;
   avatarUrl: string | null;
   role: 'ADMIN' | 'USER';
+  privacyVersion?: string | null;
+  privacyAcceptedAt?: string | null;
+  requiresPrivacyAcceptance?: boolean;
 }
 export interface Session {
   accessToken: string;
@@ -72,6 +75,7 @@ export interface Problem {
   testCases?: TestCase[];
   subtasks?: Subtask[];
   scoringEditable?: boolean;
+  deletedAt?: string | null;
 }
 export type Verdict =
   | 'QUEUED'
@@ -107,8 +111,9 @@ export interface Submission {
   submittedAt: string;
   judgedAt?: string;
   scoreResetAt?: string | null;
-  problem: Pick<Problem, 'id' | 'slug' | 'title' | 'maxScore'>;
+  problem: Pick<Problem, 'id' | 'slug' | 'title' | 'maxScore' | 'deletedAt'>;
   competitionId?: string | null;
+  competition?: { id: string; deletedAt: string | null } | null;
   sourceCode?: string;
   compilerOutput?: string;
   systemMessage?: string;

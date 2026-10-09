@@ -53,6 +53,7 @@ export async function api<T>(
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (data?.code === 'PRIVACY_ACCEPTANCE_REQUIRED') window.dispatchEvent(new Event('nr-privacy-required'));
     if (response.status === 401 && !path.startsWith('/auth/google')) {
       tokenStore.clear();
       window.dispatchEvent(new Event('nr-session-expired'));

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import Swal from 'sweetalert2';
-vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
+vi.mock('sweetalert2', () => ({ default: { fire: vi.fn(), close: vi.fn() } }));
 import { afterEach, beforeEach, vi } from 'vitest';
 beforeEach(() => {
   vi.mocked(Swal.fire)

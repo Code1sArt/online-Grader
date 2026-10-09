@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { api, json, tokenStore, message } from './lib/api';
+import { PrivacyGate } from './components/PrivacyGate';
 import { confirmAction } from './lib/dialogs';
 import type { Session, User } from './types';
 
@@ -11,6 +12,7 @@ interface AuthState {
   login: (credential: string) => Promise<void>;
   logout: () => void;
   retry: () => void;
+  acceptPrivacy: (version: string) => Promise<void>;
 }
 const Context = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -47,6 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('nr-session-expired', logout);
     return () => window.removeEventListener('nr-session-expired', logout);
   }, [logout]);
+  const acceptPrivacy = useCallback(async (version: string) => {
+    const updated = await api<User>('/auth/consent', json('POST', { accepted: true, version }));
+    setUser(updated);
+  }, []);
+  useEffect(() => {
+    const refresh = () => setRevision((n) => n + 1);
+    window.addEventListener('nr-privacy-required', refresh);
+    return () => window.removeEventListener('nr-privacy-required', refresh);
+  }, []);
   async function login(credential: string) {
     const session = await api<Session>('/auth/google', json('POST', { idToken: credential }));
     tokenStore.set(session.accessToken);
@@ -54,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError('');
   }
   return (
-    <Context.Provider value={{ user, loading, error, login, logout, retry: () => setRevision((n) => n + 1) }}>
+    <Context.Provider
+      value={{ user, loading, error, login, logout, acceptPrivacy, retry: () => setRevision((n) => n + 1) }}
+    >
       {children}
     </Context.Provider>
   );
@@ -88,6 +101,7 @@ export function Protected({ admin = false }: { admin?: boolean }) {
       </div>
     );
   if (!user) return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+  if (user.requiresPrivacyAcceptance) return <PrivacyGate />;
   if (admin && user.role !== 'ADMIN') return <Navigate to="/problems" replace />;
   return <Outlet />;
 }

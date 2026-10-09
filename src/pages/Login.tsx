@@ -18,9 +18,7 @@ export function Login() {
   if (user)
     return (
       <Navigate
-        to={
-          next?.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') ? next : '/problems'
-        }
+        to={next?.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') ? next : '/'}
         replace
       />
     );

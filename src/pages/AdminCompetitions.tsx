@@ -22,6 +22,22 @@ export function AdminCompetitions() {
       setBusy(false);
     }
   }
+  async function remove(competition: Competition) {
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await api(`/competitions/${competition.id}`, {
+        method: 'DELETE',
+        confirmation: `ลบการแข่งขัน ${competition.title} ออกจากรายการ? ประวัติคำตอบจะยังคงอยู่`,
+      });
+      reload();
+    } catch (caught) {
+      setActionError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="page">
       <Heading
@@ -79,6 +95,13 @@ export function AdminCompetitions() {
                           onClick={() => void status(c.id, c.status === 'PUBLISHED' ? 'CLOSED' : 'PUBLISHED')}
                         >
                           {c.status === 'PUBLISHED' ? 'ปิดการแข่งขัน' : 'เผยแพร่'}
+                        </button>
+                        <button
+                          className="button secondary small"
+                          disabled={busy}
+                          onClick={() => void remove(c)}
+                        >
+                          ลบการแข่งขัน
                         </button>
                       </td>
                     </tr>

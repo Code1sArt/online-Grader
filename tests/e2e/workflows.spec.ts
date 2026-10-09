@@ -668,3 +668,141 @@ test('SweetAlert logout can be cancelled or confirmed', async ({ page }) => {
   await page.getByRole('button', { name: 'ยืนยัน', exact: true }).click();
   await expect(page).toHaveURL(/login$/);
 });
+
+test('privacy acceptance gates the global leaderboard with a real popup', async ({ page }, info) => {
+  await mockApi(page);
+  let accepted = false;
+  let boardCalls = 0;
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ json: { ...user, requiresPrivacyAcceptance: !accepted } }),
+  );
+  await page.route('**/api/auth/privacy', (route) =>
+    route.fulfill({
+      json: {
+        version: 'test-v1',
+        title: 'ความเป็นส่วนตัวและเงื่อนไขการใช้งาน',
+        paragraphs: ['ระบบเก็บประวัติ IP 90 วัน', 'ชื่อและคะแนนแสดงแก่สมาชิก'],
+      },
+    }),
+  );
+  await page.route('**/api/auth/consent', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ accepted: true, version: 'test-v1' });
+    accepted = true;
+    await route.fulfill({ json: { ...user, requiresPrivacyAcceptance: false } });
+  });
+  await page.route('**/api/leaderboard', async (route) => {
+    boardCalls++;
+    await route.fulfill({
+      json: {
+        generatedAt: new Date().toISOString(),
+        entries: [
+          { userId: user.id, displayName: user.displayName, avatarUrl: null, totalScore: 170, rank: 1 },
+        ],
+      },
+    });
+  });
+  await page.goto('/');
+  await expect(page.locator('.privacy-popup')).toBeVisible();
+  expect(boardCalls).toBe(0);
+  await noOverflow(page);
+  await page.getByRole('button', { name: 'ยอมรับเงื่อนไข', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /อันดับคะแนนรวม/ })).toBeVisible();
+  await expect(page.locator('.speed-table')).toContainText('170');
+  const scoreCell = await page.locator('.speed-table tbody td:last-child').boundingBox();
+  expect(scoreCell!.x + scoreCell!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/home-${info.project.name}.png`, fullPage: true });
+});
+
+test('admin blocks members and inspects retained IP history', async ({ page }, info) => {
+  await mockApi(page, true);
+  let active = true;
+  const member = () => ({
+    ...user,
+    isActive: active,
+    deletedAt: null,
+    privacyAcceptedAt: new Date().toISOString(),
+    _count: { submissions: 2 },
+    usage: { loginCount: 1, playgroundCount: 2, graderRunCount: 3 },
+  });
+  await page.route('**/api/members?**', (route) =>
+    route.fulfill({ json: { items: [member()], total: 1, pageSize: 50 } }),
+  );
+  await page.route('**/api/members/test-user/status', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ isActive: false });
+    active = false;
+    await route.fulfill({ json: member() });
+  });
+  await page.route('**/api/members/test-user/history?**', (route) =>
+    route.fulfill({
+      json: {
+        user: member(),
+        items: [{ id: 'log1', kind: 'SUBMISSION', ip: '203.0.113.10', createdAt: new Date().toISOString() }],
+        total: 1,
+        pageSize: 50,
+      },
+    }),
+  );
+  await page.goto('/admin/members');
+  await page.getByRole('button', { name: 'บล็อก', exact: true }).click();
+  await expect(page.locator('.swal2-popup')).toBeVisible();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('button', { name: 'ปลดบล็อก', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'ดูประวัติการใช้งาน', exact: true }).click();
+  await expect(page.getByText('203.0.113.10', { exact: true })).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/member-history-${info.project.name}.png`, fullPage: true });
+});
+
+test('problem constraints preserve line breaks when saved and displayed', async ({ page }) => {
+  await mockApi(page, true);
+  let constraints = '1 ≤ N\nN ≤ 100';
+  await page.route('**/api/problems/p1', async (route) => {
+    if (route.request().method() === 'PATCH') constraints = route.request().postDataJSON().constraints;
+    await route.fulfill({ json: { ...problem, constraints } });
+  });
+  await page.goto('/admin/problems/p1');
+  await page
+    .getByRole('textbox', { name: 'ข้อจำกัดของข้อมูล', exact: true })
+    .fill('1 ≤ N\nN ≤ 1000\nA ≤ 5000');
+  await page.getByRole('button', { name: 'บันทึกโจทย์', exact: true }).click();
+  await expect(page.locator('.swal2-popup')).toBeVisible();
+  await page.locator('.swal2-confirm').click();
+  await expect.poll(() => constraints).toBe('1 ≤ N\nN ≤ 1000\nA ≤ 5000');
+  await page.goto('/problems/p1');
+  await expect(page.locator('.constraints-markdown')).toContainText('N ≤ 1000');
+  await expect(page.locator('.constraints-markdown')).toHaveCSS('white-space', 'pre-line');
+  await noOverflow(page);
+});
+
+test('admin deletes problems and competitions through confirmation', async ({ page }) => {
+  await mockApi(page, true);
+  let removedProblem = false;
+  let removedCompetition = false;
+  await page.route('**/api/problems', (route) => route.fulfill({ json: removedProblem ? [] : [problem] }));
+  await page.route('**/api/problems/p1', async (route) => {
+    expect(route.request().method()).toBe('DELETE');
+    removedProblem = true;
+    await route.fulfill({ json: { deleted: true } });
+  });
+  await page.route('**/api/competitions', (route) =>
+    route.fulfill({ json: removedCompetition ? [] : [competition] }),
+  );
+  await page.route('**/api/competitions/c1', async (route) => {
+    expect(route.request().method()).toBe('DELETE');
+    removedCompetition = true;
+    await route.fulfill({ json: { deleted: true } });
+  });
+  await page.goto('/admin/problems');
+  await page.getByRole('button', { name: 'ลบโจทย์', exact: true }).click();
+  await expect(page.locator('.swal2-popup')).toBeVisible();
+  expect(removedProblem).toBe(false);
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('button', { name: 'ลบโจทย์', exact: true })).toHaveCount(0);
+  await page.goto('/admin/competitions');
+  await page.getByRole('button', { name: 'ลบการแข่งขัน', exact: true }).click();
+  await expect(page.locator('.swal2-popup')).toBeVisible();
+  expect(removedCompetition).toBe(false);
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('button', { name: 'ลบการแข่งขัน', exact: true })).toHaveCount(0);
+});

@@ -36,10 +36,12 @@ let failProblems: boolean;
 let joined: boolean;
 let playgroundEnabled: boolean;
 let groupedSubmission: boolean;
+let privacyRequired: boolean;
 beforeEach(() => {
   requests = [];
   role = 'USER';
   groupedSubmission = false;
+  privacyRequired = false;
   failProblems = false;
   joined = false;
   playgroundEnabled = false;
@@ -51,97 +53,145 @@ beforeEach(() => {
       if (path === '/problems' && failProblems)
         return new Response(JSON.stringify({ message: 'API unavailable' }), { status: 503 });
       const payload =
-        path === '/submissions/me/problems' || path === '/submissions/admin/problems'
-          ? [
-              {
-                problem,
-                submissionCount: 2,
-                userCount: 1,
-                bestScore: 100,
-                lastSubmittedAt: submission.submittedAt,
-              },
-            ]
-          : path === '/submissions/me/problems/p1' ||
-              path === '/submissions/admin/problems/p1/users/test-user'
-            ? { problem, user, items: [submission], total: 1, page: 1, pageSize: 50 }
-            : path === '/submissions/admin/problems/p1'
-              ? {
-                  problem,
-                  respondents: [
-                    { user, submissionCount: 2, bestScore: 100, lastSubmittedAt: submission.submittedAt },
-                  ],
-                }
-              : path === '/submissions/admin/problems/p1/reset'
-                ? { resetCount: 2 }
-                : path === '/auth/me'
-                  ? { ...user, role }
-                  : path === '/auth/google'
-                    ? { accessToken: 'session-test-token', user: { ...user, role } }
-                    : path === '/problems'
-                      ? [problem]
-                      : path === '/problems/p1'
-                        ? problem
-                        : path === '/submissions/me'
-                          ? []
-                          : path === '/submissions'
-                            ? { id: 's1', status: 'QUEUED' }
-                            : path === '/submissions/s1'
-                              ? groupedSubmission
-                                ? {
-                                    ...submission,
-                                    status: 'PARTIAL',
-                                    subtaskResults: [
-                                      {
-                                        subtaskId: 'g1',
-                                        name: 'ข้อมูลขนาดใหญ่',
-                                        description: null,
-                                        maxScore: 100,
-                                        score: 0,
-                                        status: 'TIME_LIMIT_EXCEEDED',
-                                        passedCount: 0,
-                                        totalCount: 3,
-                                        executedCount: 1,
-                                        skippedCount: 2,
-                                        executionTimeMs: 1000,
-                                        memoryUsedKb: 1024,
-                                      },
-                                    ],
-                                  }
-                                : submission
-                              : path === '/competitions/c1/join'
-                                ? ((joined = true), {})
-                                : path === '/competitions/c1'
-                                  ? {
-                                      ...competition,
-                                      joined,
-                                      participants: joined ? [{ joinedAt: new Date().toISOString() }] : [],
-                                    }
-                                  : path === '/competitions/c1/leaderboard'
-                                    ? { entries: [] }
-                                    : path === '/competitions'
-                                      ? [competition]
-                                      : path === '/settings'
-                                        ? options.method === 'PATCH'
-                                          ? {
-                                              playgroundEnabled: (playgroundEnabled = JSON.parse(
-                                                options.body as string,
-                                              ).playgroundEnabled),
-                                              updatedAt: new Date().toISOString(),
-                                            }
-                                          : { playgroundEnabled, updatedAt: null }
-                                        : path === '/playground/run'
-                                          ? {
-                                              status: 'ACCEPTED',
-                                              stdout: 'hello\n',
-                                              stderr: '',
-                                              compilerOutput: '',
-                                              message: '',
-                                              executionTimeMs: 8,
-                                              memoryUsedKb: 1024,
-                                            }
-                                          : path.endsWith('/test-cases')
-                                            ? {}
-                                            : null;
+        path === '/leaderboard'
+          ? {
+              generatedAt: submission.submittedAt,
+              entries: [
+                { userId: user.id, displayName: user.displayName, avatarUrl: null, rank: 1, totalScore: 100 },
+              ],
+            }
+          : path === '/auth/privacy'
+            ? {
+                title: 'ความเป็นส่วนตัวและเงื่อนไขการใช้งาน',
+                version: '2026-10-09-v1',
+                paragraphs: ['เก็บ IP 90 วัน'],
+              }
+            : path === '/auth/consent'
+              ? ((privacyRequired = false), { ...user, role, requiresPrivacyAcceptance: false })
+              : path === '/members'
+                ? {
+                    total: 1,
+                    pageSize: 50,
+                    items: [
+                      {
+                        ...user,
+                        isActive: true,
+                        deletedAt: null,
+                        createdAt: submission.submittedAt,
+                        usage: { graderRunCount: 3 },
+                        _count: { submissions: 2 },
+                      },
+                    ],
+                  }
+                : path === `/members/${user.id}/status` || path === `/members/${user.id}`
+                  ? {}
+                  : path === `/members/${user.id}/history`
+                    ? {
+                        user: { ...user, usage: { loginCount: 1, playgroundCount: 2, graderRunCount: 3 } },
+                        total: 1,
+                        pageSize: 50,
+                        items: [
+                          { id: 'log', kind: 'LOGIN', ip: '203.0.113.10', createdAt: submission.submittedAt },
+                        ],
+                      }
+                    : path === '/submissions/me/problems' || path === '/submissions/admin/problems'
+                      ? [
+                          {
+                            problem,
+                            submissionCount: 2,
+                            userCount: 1,
+                            bestScore: 100,
+                            lastSubmittedAt: submission.submittedAt,
+                          },
+                        ]
+                      : path === '/submissions/me/problems/p1' ||
+                          path === '/submissions/admin/problems/p1/users/test-user'
+                        ? { problem, user, items: [submission], total: 1, page: 1, pageSize: 50 }
+                        : path === '/submissions/admin/problems/p1'
+                          ? {
+                              problem,
+                              respondents: [
+                                {
+                                  user,
+                                  submissionCount: 2,
+                                  bestScore: 100,
+                                  lastSubmittedAt: submission.submittedAt,
+                                },
+                              ],
+                            }
+                          : path === '/submissions/admin/problems/p1/reset'
+                            ? { resetCount: 2 }
+                            : path === '/auth/me'
+                              ? { ...user, role, requiresPrivacyAcceptance: privacyRequired }
+                              : path === '/auth/google'
+                                ? { accessToken: 'session-test-token', user: { ...user, role } }
+                                : path === '/problems'
+                                  ? [problem]
+                                  : path === '/problems/p1'
+                                    ? problem
+                                    : path === '/submissions/me'
+                                      ? []
+                                      : path === '/submissions'
+                                        ? { id: 's1', status: 'QUEUED' }
+                                        : path === '/submissions/s1'
+                                          ? groupedSubmission
+                                            ? {
+                                                ...submission,
+                                                status: 'PARTIAL',
+                                                subtaskResults: [
+                                                  {
+                                                    subtaskId: 'g1',
+                                                    name: 'ข้อมูลขนาดใหญ่',
+                                                    description: null,
+                                                    maxScore: 100,
+                                                    score: 0,
+                                                    status: 'TIME_LIMIT_EXCEEDED',
+                                                    passedCount: 0,
+                                                    totalCount: 3,
+                                                    executedCount: 1,
+                                                    skippedCount: 2,
+                                                    executionTimeMs: 1000,
+                                                    memoryUsedKb: 1024,
+                                                  },
+                                                ],
+                                              }
+                                            : submission
+                                          : path === '/competitions/c1/join'
+                                            ? ((joined = true), {})
+                                            : path === '/competitions/c1'
+                                              ? {
+                                                  ...competition,
+                                                  joined,
+                                                  participants: joined
+                                                    ? [{ joinedAt: new Date().toISOString() }]
+                                                    : [],
+                                                }
+                                              : path === '/competitions/c1/leaderboard'
+                                                ? { entries: [] }
+                                                : path === '/competitions'
+                                                  ? [competition]
+                                                  : path === '/settings'
+                                                    ? options.method === 'PATCH'
+                                                      ? {
+                                                          playgroundEnabled: (playgroundEnabled = JSON.parse(
+                                                            options.body as string,
+                                                          ).playgroundEnabled),
+                                                          updatedAt: new Date().toISOString(),
+                                                        }
+                                                      : { playgroundEnabled, updatedAt: null }
+                                                    : path === '/playground/run'
+                                                      ? {
+                                                          status: 'ACCEPTED',
+                                                          stdout: 'hello\n',
+                                                          stderr: '',
+                                                          compilerOutput: '',
+                                                          message: '',
+                                                          executionTimeMs: 8,
+                                                          memoryUsedKb: 1024,
+                                                        }
+                                                      : path.endsWith('/test-cases')
+                                                        ? {}
+                                                        : null;
       if (payload === null) throw new Error(`Unexpected request ${path}`);
       return new Response(JSON.stringify(payload), { status: 200 });
     }),
@@ -158,6 +208,42 @@ function mount(path = '/problems', signedIn = true) {
   );
 }
 describe('NR Grader user workflows', () => {
+  it('shows total scores on Home', async () => {
+    mount('/');
+    expect(await screen.findByRole('heading', { name: 'อันดับคะแนนรวม' })).toBeInTheDocument();
+    expect(await screen.findByText(/อันดับของคุณ/)).toHaveTextContent('100 คะแนน');
+  });
+  it('requires acceptance before loading protected pages', async () => {
+    privacyRequired = true;
+    mount('/');
+    expect(await screen.findByRole('heading', { name: 'อันดับคะแนนรวม' })).toBeInTheDocument();
+    const consent = requests.findIndex((row) => row.path === '/auth/consent');
+    expect(consent).toBeGreaterThan(-1);
+    expect(requests.findIndex((row) => row.path === '/leaderboard')).toBeGreaterThan(consent);
+    expect(JSON.parse(requests[consent].options.body as string)).toEqual({
+      accepted: true,
+      version: '2026-10-09-v1',
+    });
+  });
+  it('declining privacy signs out without loading member data', async () => {
+    privacyRequired = true;
+    vi.mocked(Swal.fire).mockResolvedValueOnce({ isConfirmed: false, isDenied: false, isDismissed: true });
+    mount('/');
+    expect(await screen.findByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
+    expect(requests.some((row) => row.path === '/leaderboard' || row.path === '/auth/consent')).toBe(false);
+    expect(tokenStore.get()).toBeNull();
+  });
+  it('lets admins block members and inspect usage IPs', async () => {
+    role = 'ADMIN';
+    mount('/admin/members');
+    await userEvent.click(await screen.findByRole('button', { name: 'บล็อก', exact: true }));
+    await waitFor(() => expect(requests.some((row) => row.path.endsWith('/status'))).toBe(true));
+    expect(JSON.parse(requests.find((row) => row.path.endsWith('/status'))!.options.body as string)).toEqual({
+      isActive: false,
+    });
+    await userEvent.click(await screen.findByRole('link', { name: 'ดูประวัติการใช้งาน' }));
+    expect(await screen.findByText('203.0.113.10')).toBeInTheDocument();
+  });
   it('groups submissions by problem and opens its history', async () => {
     mount('/submissions');
     await userEvent.click(await screen.findByRole('link', { name: 'ดูประวัติ' }));
