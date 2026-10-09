@@ -1173,6 +1173,32 @@ td .mono {
   background: #eff4f1;
   padding: 2px 4px;
 }
+.markdown-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+.markdown table {
+  font-size: inherit;
+  line-height: 1.65;
+  white-space: normal;
+}
+.markdown th,
+.markdown td {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  min-width: 100px;
+}
+.markdown th {
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: #eff4f1;
+  white-space: normal;
+}
+.markdown tbody tr:last-child td {
+  border-bottom: 1px solid var(--line);
+}
 .sample h3 {
   font-size: 11px;
   color: #8c9b91;

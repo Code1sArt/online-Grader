@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import CodeMirror from '@uiw/react-codemirror';
 import { cpp } from '@codemirror/lang-cpp';
 import { python } from '@codemirror/lang-python';
-import Markdown from 'react-markdown';
+import { ProblemMarkdown } from '../components/ProblemMarkdown';
 import { Clock3, Cpu, Send, RotateCcw, Save, ChevronLeft, FileCode2 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api, json, message } from '../lib/api';
@@ -59,13 +59,13 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
           </div>
           <div className="statement-body">
             <div className="markdown">
-              <Markdown>{problem.statement || ''}</Markdown>
+              <ProblemMarkdown>{problem.statement || ''}</ProblemMarkdown>
             </div>
             {problem.inputDescription && (
               <section>
                 <h2>ข้อมูลนำเข้า</h2>
                 <div className="markdown">
-                  <Markdown>{problem.inputDescription}</Markdown>
+                  <ProblemMarkdown>{problem.inputDescription}</ProblemMarkdown>
                 </div>
               </section>
             )}
@@ -73,7 +73,7 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
               <section>
                 <h2>ข้อมูลส่งออก</h2>
                 <div className="markdown">
-                  <Markdown>{problem.outputDescription}</Markdown>
+                  <ProblemMarkdown>{problem.outputDescription}</ProblemMarkdown>
                 </div>
               </section>
             )}
@@ -81,7 +81,7 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
               <section>
                 <h2>ข้อจำกัด</h2>
                 <div className="markdown constraints-markdown">
-                  <Markdown>{problem.constraints}</Markdown>
+                  <ProblemMarkdown>{problem.constraints}</ProblemMarkdown>
                 </div>
               </section>
             )}

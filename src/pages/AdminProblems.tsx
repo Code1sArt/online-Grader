@@ -244,7 +244,7 @@ function ProblemEditor({
               />
             </Field>
           </div>
-          <Field label="เนื้อหาโจทย์" hint="รองรับ Markdown">
+          <Field label="เนื้อหาโจทย์" hint="รองรับ Markdown รวมถึงตาราง">
             <textarea
               name="statement"
               required
