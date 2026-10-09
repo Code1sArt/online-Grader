@@ -1,3 +1,4 @@
+import { confirmAction } from '../lib/dialogs';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
@@ -141,8 +142,8 @@ function Runner({ language }: { language: Language }) {
           className="icon-button"
           aria-label="เริ่มโค้ด Playground ใหม่"
           title="เริ่มโค้ดใหม่"
-          onClick={() => {
-            if (window.confirm('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) {
+          onClick={async () => {
+            if (await confirmAction('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) {
               setCode(codeTemplates[language]);
               setResult(undefined);
               setError('');

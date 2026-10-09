@@ -144,3 +144,11 @@ ZIP ไม่เกิน 20 MB, ไฟล์แต่ละไฟล์หล�
 ### เลือกหลายเทสเป็นตัวอย่าง
 
 ในตาราง “ชุดทดสอบ / Test cases” ติ๊ก checkbox ของเทสที่ต้องการ หรือเลือกทั้งหมด แล้วกด “ตั้งเป็นตัวอย่าง” เพื่อแสดง Input / Output ในหน้าโจทย์ สามารถเลือกแล้วกด “ตั้งเป็นเทสลับ” เพื่อซ่อนกลับได้ การเปลี่ยนนี้ไม่แก้คะแนน ลำดับ หรือ subtask และใช้ได้กับโจทย์ที่เผยแพร่แล้ว หากบันทึกไม่สำเร็จ ระบบคงรายการที่เลือกไว้ให้ลองใหม่
+
+Subtask results now show group verdicts only. The judge stops each group at its first failed test, continues with the next group, and reports executed/skipped counts. Compilation errors stop the entire submission; problems without subtasks retain individual test results.
+
+## Submission history and score resets
+
+The submissions page groups attempts by problem and opens paginated history (50 attempts per page). Admins use `/admin/submissions` to browse problems, respondents ranked by highest active score, each respondent's history, and individual source code. Score resets apply to one problem or one respondent within that problem, including competition submissions. Reset attempts retain their original verdict and code, display zero points, and no longer contribute to leaderboards. New attempts can earn points normally; in-flight judging cannot remove a reset marker.
+
+Deploy the API and apply its `20261009090000_submission_score_reset` migration before releasing this frontend. SweetAlert2 confirms user-initiated writes, deleting records, replacing draft code, and signing out. Cancelled operations send no request; automatic session expiry still clears the expired session immediately.

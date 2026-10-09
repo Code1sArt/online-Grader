@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { api, json, tokenStore, message } from './lib/api';
+import { confirmAction } from './lib/dialogs';
 import type { Session, User } from './types';
 
 interface AuthState {
@@ -77,7 +78,13 @@ export function Protected({ admin = false }: { admin?: boolean }) {
       <div className="fullscreen-state">
         <p role="alert">{error}</p>
         <button onClick={retry}>ลองอีกครั้ง</button>
-        <button onClick={logout}>กลับไปเข้าสู่ระบบ</button>
+        <button
+          onClick={async () => {
+            if (await confirmAction('ออกจากเซสชันนี้และกลับไปเข้าสู่ระบบ?', 'ออกจากระบบ')) logout();
+          }}
+        >
+          กลับไปเข้าสู่ระบบ
+        </button>
       </div>
     );
   if (!user) return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;

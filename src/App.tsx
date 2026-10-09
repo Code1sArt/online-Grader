@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Empty, Loading } from './components/ui';
 import { Login } from './pages/Login';
 import { Problems } from './pages/Problems';
+import { SubmissionOverview, SubmissionHistory, AdminRespondents } from './pages/SubmissionBrowser';
 import { Submissions, SubmissionDetail } from './pages/Submissions';
 import { Competitions, CompetitionDetail } from './pages/Competitions';
 const Playground = lazy(() => import('./pages/Playground').then((m) => ({ default: m.Playground })));
@@ -39,6 +40,7 @@ function AppRoutes() {
           <Route path="problems" element={<Problems />} />
           <Route path="problems/:id" element={<Workspace />} />
           <Route path="submissions" element={<Submissions />} />
+          <Route path="submissions/problems/:problemId" element={<SubmissionHistory />} />
           <Route path="submissions/:id" element={<SubmissionDetail />} />
           <Route path="competitions" element={<Competitions />} />
           <Route path="competitions/:id" element={<CompetitionDetail />} />
@@ -49,6 +51,16 @@ function AppRoutes() {
             <Route path="admin/problems/:id" element={<AdminProblemEditor />} />
             <Route path="admin/competitions" element={<AdminCompetitions />} />
             <Route path="admin/competitions/new" element={<CreateCompetition />} />
+            <Route path="admin/submissions" element={<SubmissionOverview admin />} />
+            <Route path="admin/submissions/problems/:problemId" element={<AdminRespondents />} />
+            <Route
+              path="admin/submissions/problems/:problemId/users/:userId"
+              element={<SubmissionHistory admin />}
+            />
+            <Route
+              path="admin/submissions/problems/:problemId/users/:userId/:id"
+              element={<SubmissionDetail />}
+            />
             <Route path="admin/settings" element={<AdminSettings />} />
           </Route>
         </Route>

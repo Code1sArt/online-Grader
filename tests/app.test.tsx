@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Swal from 'sweetalert2';
 import App from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { tokenStore } from '../src/lib/api';
@@ -34,68 +35,113 @@ let role: 'USER' | 'ADMIN';
 let failProblems: boolean;
 let joined: boolean;
 let playgroundEnabled: boolean;
+let groupedSubmission: boolean;
 beforeEach(() => {
   requests = [];
   role = 'USER';
+  groupedSubmission = false;
   failProblems = false;
   joined = false;
   playgroundEnabled = false;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options: RequestInit = {}) => {
-      const path = url.replace('/api', '');
+      const path = url.replace('/api', '').split('?')[0];
       requests.push({ path, options });
       if (path === '/problems' && failProblems)
         return new Response(JSON.stringify({ message: 'API unavailable' }), { status: 503 });
       const payload =
-        path === '/auth/me'
-          ? { ...user, role }
-          : path === '/auth/google'
-            ? { accessToken: 'session-test-token', user: { ...user, role } }
-            : path === '/problems'
-              ? [problem]
-              : path === '/problems/p1'
-                ? problem
-                : path === '/submissions/me'
-                  ? []
-                  : path === '/submissions'
-                    ? { id: 's1', status: 'QUEUED' }
-                    : path === '/submissions/s1'
-                      ? submission
-                      : path === '/competitions/c1/join'
-                        ? ((joined = true), {})
-                        : path === '/competitions/c1'
-                          ? {
-                              ...competition,
-                              joined,
-                              participants: joined ? [{ joinedAt: new Date().toISOString() }] : [],
-                            }
-                          : path === '/competitions/c1/leaderboard'
-                            ? { entries: [] }
-                            : path === '/competitions'
-                              ? [competition]
-                              : path === '/settings'
-                                ? options.method === 'PATCH'
+        path === '/submissions/me/problems' || path === '/submissions/admin/problems'
+          ? [
+              {
+                problem,
+                submissionCount: 2,
+                userCount: 1,
+                bestScore: 100,
+                lastSubmittedAt: submission.submittedAt,
+              },
+            ]
+          : path === '/submissions/me/problems/p1' ||
+              path === '/submissions/admin/problems/p1/users/test-user'
+            ? { problem, user, items: [submission], total: 1, page: 1, pageSize: 50 }
+            : path === '/submissions/admin/problems/p1'
+              ? {
+                  problem,
+                  respondents: [
+                    { user, submissionCount: 2, bestScore: 100, lastSubmittedAt: submission.submittedAt },
+                  ],
+                }
+              : path === '/submissions/admin/problems/p1/reset'
+                ? { resetCount: 2 }
+                : path === '/auth/me'
+                  ? { ...user, role }
+                  : path === '/auth/google'
+                    ? { accessToken: 'session-test-token', user: { ...user, role } }
+                    : path === '/problems'
+                      ? [problem]
+                      : path === '/problems/p1'
+                        ? problem
+                        : path === '/submissions/me'
+                          ? []
+                          : path === '/submissions'
+                            ? { id: 's1', status: 'QUEUED' }
+                            : path === '/submissions/s1'
+                              ? groupedSubmission
+                                ? {
+                                    ...submission,
+                                    status: 'PARTIAL',
+                                    subtaskResults: [
+                                      {
+                                        subtaskId: 'g1',
+                                        name: 'ข้อมูลขนาดใหญ่',
+                                        description: null,
+                                        maxScore: 100,
+                                        score: 0,
+                                        status: 'TIME_LIMIT_EXCEEDED',
+                                        passedCount: 0,
+                                        totalCount: 3,
+                                        executedCount: 1,
+                                        skippedCount: 2,
+                                        executionTimeMs: 1000,
+                                        memoryUsedKb: 1024,
+                                      },
+                                    ],
+                                  }
+                                : submission
+                              : path === '/competitions/c1/join'
+                                ? ((joined = true), {})
+                                : path === '/competitions/c1'
                                   ? {
-                                      playgroundEnabled: (playgroundEnabled = JSON.parse(
-                                        options.body as string,
-                                      ).playgroundEnabled),
-                                      updatedAt: new Date().toISOString(),
+                                      ...competition,
+                                      joined,
+                                      participants: joined ? [{ joinedAt: new Date().toISOString() }] : [],
                                     }
-                                  : { playgroundEnabled, updatedAt: null }
-                                : path === '/playground/run'
-                                  ? {
-                                      status: 'ACCEPTED',
-                                      stdout: 'hello\n',
-                                      stderr: '',
-                                      compilerOutput: '',
-                                      message: '',
-                                      executionTimeMs: 8,
-                                      memoryUsedKb: 1024,
-                                    }
-                                  : path.endsWith('/test-cases')
-                                    ? {}
-                                    : null;
+                                  : path === '/competitions/c1/leaderboard'
+                                    ? { entries: [] }
+                                    : path === '/competitions'
+                                      ? [competition]
+                                      : path === '/settings'
+                                        ? options.method === 'PATCH'
+                                          ? {
+                                              playgroundEnabled: (playgroundEnabled = JSON.parse(
+                                                options.body as string,
+                                              ).playgroundEnabled),
+                                              updatedAt: new Date().toISOString(),
+                                            }
+                                          : { playgroundEnabled, updatedAt: null }
+                                        : path === '/playground/run'
+                                          ? {
+                                              status: 'ACCEPTED',
+                                              stdout: 'hello\n',
+                                              stderr: '',
+                                              compilerOutput: '',
+                                              message: '',
+                                              executionTimeMs: 8,
+                                              memoryUsedKb: 1024,
+                                            }
+                                          : path.endsWith('/test-cases')
+                                            ? {}
+                                            : null;
       if (payload === null) throw new Error(`Unexpected request ${path}`);
       return new Response(JSON.stringify(payload), { status: 200 });
     }),
@@ -112,6 +158,46 @@ function mount(path = '/problems', signedIn = true) {
   );
 }
 describe('NR Grader user workflows', () => {
+  it('groups submissions by problem and opens its history', async () => {
+    mount('/submissions');
+    await userEvent.click(await screen.findByRole('link', { name: 'ดูประวัติ' }));
+    expect(await screen.findByRole('link', { name: 'ดูผลและโค้ด' })).toBeInTheDocument();
+    expect(requests.some((row) => row.path === '/submissions/me/problems/p1')).toBe(true);
+  });
+  it('lets admins browse respondents and reset only the selected user', async () => {
+    role = 'ADMIN';
+    mount('/admin/submissions/problems/p1');
+    await userEvent.click(await screen.findByRole('button', { name: `รีเซ็ตคะแนน ${user.displayName}` }));
+    await waitFor(() => expect(requests.some((row) => row.path.endsWith('/reset'))).toBe(true));
+    expect(JSON.parse(requests.find((row) => row.path.endsWith('/reset'))!.options.body as string)).toEqual({
+      userId: user.id,
+    });
+    expect(Swal.fire).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('ของผู้เรียนคนนี้') }),
+    );
+  });
+  it('opens a respondents history and source code for admins', async () => {
+    role = 'ADMIN';
+    mount('/admin/submissions/problems/p1');
+    await userEvent.click(await screen.findByRole('link', { name: 'ดูประวัติและโค้ด' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'ดูผลและโค้ด' }));
+    expect(await screen.findByText(submission.sourceCode!)).toBeInTheDocument();
+  });
+  it('keeps the session when logout confirmation is cancelled', async () => {
+    vi.mocked(Swal.fire).mockResolvedValueOnce({ isConfirmed: false, isDenied: false, isDismissed: true });
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'ออกจากระบบ' }));
+    expect(tokenStore.get()).toBe('session-test-token');
+  });
+  it('shows grouped verdicts and skipped counts without individual test results', async () => {
+    groupedSubmission = true;
+    mount('/submissions/s1');
+    expect(await screen.findByRole('heading', { name: 'ผลตรวจราย Subtask' })).toBeInTheDocument();
+    expect(screen.getByText('ข้อมูลขนาดใหญ่')).toBeInTheDocument();
+    expect(screen.getByText(/ข้าม 2 เทสหลังไม่ผ่าน/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ผลตรวจรายเทสเคส' })).not.toBeInTheDocument();
+    expect(screen.queryByText('ดู output')).not.toBeInTheDocument();
+  });
   it('protects anonymous pages and signs in using a Google credential', async () => {
     mount('/problems', false);
     await userEvent.click(await screen.findByRole('button', { name: 'Sign in with Google' }));

@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import Swal from 'sweetalert2';
 import { api, json, tokenStore } from '../src/lib/api';
 import { competitionPhase } from '../src/pages/Competitions';
 import { competition } from './fixtures';
 describe('API and competition boundaries', () => {
+  it('does not send a mutation when the confirmation is cancelled', async () => {
+    vi.mocked(Swal.fire).mockResolvedValueOnce({ isConfirmed: false, isDenied: false, isDismissed: true });
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    await expect(api('/submissions/admin/problems/p1/reset', json('POST', {}))).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it('attaches the JWT and clears it on an expired session', async () => {
     tokenStore.set('expired');
     const expired = vi.fn();

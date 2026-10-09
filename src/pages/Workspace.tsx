@@ -1,3 +1,4 @@
+import { confirmAction } from '../lib/dialogs';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
@@ -220,8 +221,8 @@ function CodePane({
           className="icon-button"
           aria-label="เริ่มโค้ดใหม่"
           title="เริ่มโค้ดใหม่"
-          onClick={() => {
-            if (window.confirm('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) setCode(codeTemplates[language]);
+          onClick={async () => {
+            if (await confirmAction('แทนที่โค้ดฉบับร่างด้วยโค้ดเริ่มต้น?')) setCode(codeTemplates[language]);
           }}
         >
           <RotateCcw size={16} />

@@ -1,3 +1,4 @@
+import { confirmAction } from '../lib/dialogs';
 import {
   BookOpen,
   ChevronRight,
@@ -70,6 +71,10 @@ export function Layout() {
                 <Trophy size={20} />
                 จัดการแข่งขัน
               </NavLink>
+              <NavLink to="/admin/submissions" onClick={() => setOpen(false)}>
+                <History size={20} />
+                คำตอบของผู้เรียน
+              </NavLink>
               <NavLink to="/admin/settings" onClick={() => setOpen(false)}>
                 <SlidersHorizontal size={20} />
                 ตั้งค่าระบบ
@@ -93,7 +98,8 @@ export function Layout() {
             <button
               aria-label="ออกจากระบบ"
               title="ออกจากระบบ"
-              onClick={() => {
+              onClick={async () => {
+                if (!(await confirmAction('ต้องการออกจากระบบ?', 'ออกจากระบบ'))) return;
                 window.google?.accounts.id.disableAutoSelect();
                 logout();
               }}

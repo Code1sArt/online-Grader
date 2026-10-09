@@ -414,7 +414,6 @@ function TestCaseEditor({
     }
   }
   async function remove(id: string) {
-    if (!window.confirm('ลบเทสเคสนี้? เทสเคสที่มีผลตรวจแล้วอาจไม่สามารถลบได้')) return;
     setBusy(true);
     setError('');
     try {

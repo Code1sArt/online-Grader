@@ -1,5 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { user, problem, submission, competition } from '../fixtures';
+async function confirmIfVisible(page: Page) {
+  if (await page.locator('.swal2-popup').isVisible()) await page.locator('.swal2-confirm').click();
+}
 async function mockApi(page: Page, admin = false) {
   let joined = false;
   await page.addInitScript(() => sessionStorage.setItem('nr-grader-session', 'e2e-only-no-server-access'));
@@ -17,35 +20,57 @@ async function mockApi(page: Page, admin = false) {
             ]
           : path === '/api/problems/p1'
             ? problem
-            : path === '/api/submissions/me'
-              ? [submission]
-              : path === '/api/submissions'
-                ? { id: 's1', status: 'QUEUED' }
-                : path === '/api/submissions/s1'
-                  ? submission
-                  : path === '/api/competitions'
-                    ? [competition]
-                    : path === '/api/settings'
-                      ? { playgroundEnabled: true, updatedAt: null }
-                      : path === '/api/playground/run'
-                        ? {
-                            status: 'ACCEPTED',
-                            stdout: 'hello\n',
-                            stderr: '',
-                            compilerOutput: '',
-                            message: '',
-                            executionTimeMs: 8,
-                            memoryUsedKb: 1024,
-                          }
-                        : path === '/api/competitions/c1/join'
-                          ? ((joined = true), {})
-                          : path === '/api/competitions/c1'
-                            ? { ...competition, joined }
-                            : path === '/api/competitions/c1/leaderboard'
-                              ? { entries: [] }
-                              : path === '/api/problems/p1/test-cases'
-                                ? {}
-                                : undefined;
+            : path === '/api/submissions/me/problems' || path === '/api/submissions/admin/problems'
+              ? [
+                  {
+                    problem,
+                    userCount: 1,
+                    submissionCount: 2,
+                    bestScore: 100,
+                    lastSubmittedAt: submission.submittedAt,
+                  },
+                ]
+              : path === '/api/submissions/admin/problems/p1'
+                ? {
+                    problem,
+                    respondents: [
+                      { user, bestScore: 100, submissionCount: 2, lastSubmittedAt: submission.submittedAt },
+                    ],
+                  }
+                : path === '/api/submissions/me/problems/p1' ||
+                    path === '/api/submissions/admin/problems/p1/users/test-user'
+                  ? { problem, user, items: [submission], total: 1, page: 1, pageSize: 50 }
+                  : path === '/api/submissions/admin/problems/p1/reset'
+                    ? { resetCount: 2 }
+                    : path === '/api/submissions/me'
+                      ? [submission]
+                      : path === '/api/submissions'
+                        ? { id: 's1', status: 'QUEUED' }
+                        : path === '/api/submissions/s1'
+                          ? submission
+                          : path === '/api/competitions'
+                            ? [competition]
+                            : path === '/api/settings'
+                              ? { playgroundEnabled: true, updatedAt: null }
+                              : path === '/api/playground/run'
+                                ? {
+                                    status: 'ACCEPTED',
+                                    stdout: 'hello\n',
+                                    stderr: '',
+                                    compilerOutput: '',
+                                    message: '',
+                                    executionTimeMs: 8,
+                                    memoryUsedKb: 1024,
+                                  }
+                                : path === '/api/competitions/c1/join'
+                                  ? ((joined = true), {})
+                                  : path === '/api/competitions/c1'
+                                    ? { ...competition, joined }
+                                    : path === '/api/competitions/c1/leaderboard'
+                                      ? { entries: [] }
+                                      : path === '/api/problems/p1/test-cases'
+                                        ? {}
+                                        : undefined;
     if (data === undefined) {
       await route.fulfill({ status: 404, json: { message: `Unexpected fixture endpoint ${path}` } });
       return;
@@ -72,6 +97,7 @@ test('problem library, real editor, submission and result', async ({ page }, inf
   await page.screenshot({ path: `test-results/library-${info.project.name}.png`, fullPage: true });
   await page.getByLabel('ค้นหาโจทย์').fill('ผลรวม');
   await page.getByRole('link', { name: problem.title, exact: true }).click();
+  await confirmIfVisible(page);
   await page.getByLabel('ภาษาสำหรับส่งคำตอบ').selectOption('PYTHON');
   await page.locator('.cm-content').fill('print(5)');
   await expect(page.locator('.cm-content')).toHaveText('print(5)');
@@ -81,6 +107,7 @@ test('problem library, real editor, submission and result', async ({ page }, inf
     (r) => new URL(r.url()).pathname === '/api/submissions' && r.method() === 'POST',
   );
   await page.getByRole('button', { name: 'ส่งคำตอบ', exact: true }).click();
+  await confirmIfVisible(page);
   expect((await request).postDataJSON()).toEqual({
     problemId: 'p1',
     language: 'PYTHON',
@@ -106,6 +133,7 @@ test('admin uploads real multipart files', async ({ page }, info) => {
   await page.screenshot({ path: `test-results/admin-${info.project.name}.png`, fullPage: true });
   const request = page.waitForRequest((r) => r.url().endsWith('/test-cases') && r.method() === 'POST');
   await page.getByRole('button', { name: 'เพิ่มเทสเคส', exact: true }).click();
+  await confirmIfVisible(page);
   const upload = await request;
   expect(upload.headers()['content-type']).toContain('multipart/form-data; boundary=');
   expect(upload.postData()).toContain('filename="test.in"');
@@ -116,13 +144,17 @@ test('competition join and responsive mobile navigation', async ({ page }, info)
   await mockApi(page);
   await page.goto('/competitions');
   await page.getByRole('link', { name: /NR Coding Challenge/ }).click();
+  await confirmIfVisible(page);
   await page.getByRole('button', { name: 'สมัครเข้าร่วม', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('link', { name: 'ทำโจทย์', exact: true })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({ path: `test-results/competition-${info.project.name}.png`, fullPage: true });
   if (info.project.name === 'mobile')
     await page.getByRole('button', { name: 'เปิดเมนู', exact: true }).click();
+  await confirmIfVisible(page);
   await page.getByRole('link', { name: 'การส่งคำตอบ', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('heading', { name: 'การส่งคำตอบ', exact: true })).toBeVisible();
 });
 
@@ -136,6 +168,7 @@ test('playground runs code with custom stdin', async ({ page }, info) => {
     (item) => new URL(item.url()).pathname === '/api/playground/run' && item.method() === 'POST',
   );
   await page.getByRole('button', { name: 'รัน Python', exact: true }).click();
+  await confirmIfVisible(page);
   expect((await request).postDataJSON()).toEqual({
     language: 'PYTHON',
     sourceCode: 'print(input())',
@@ -163,6 +196,7 @@ test('admin creates a problem and opens its testcase editor', async ({ page }) =
   await page.getByLabel('Memory Limit (MB)').fill('256');
   await page.getByLabel('คะแนนเต็ม', { exact: true }).fill('50');
   await page.getByRole('button', { name: 'บันทึกโจทย์', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('heading', { name: 'แก้ไขโจทย์', exact: true })).toBeVisible();
   await expect(page.getByLabel('ชื่อโจทย์', { exact: true })).toHaveValue('Count numbers');
   await expect(page.getByRole('button', { name: 'เพิ่มเทสเคส', exact: true })).toBeVisible();
@@ -190,12 +224,14 @@ test('competition creation validates dates and sends weighted scores', async ({ 
   await page.getByRole('checkbox', { name: /ผลรวมของจำนวนเต็ม/ }).check();
   await page.getByLabel('คะแนนของ ผลรวมของจำนวนเต็ม').fill('250');
   await page.getByRole('button', { name: 'สร้างการแข่งขัน', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('alert')).toHaveText('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม');
   expect(posts).toHaveLength(0);
   await page.getByLabel('เวลาสิ้นสุด (เวลาท้องถิ่นของอุปกรณ์)').fill('2026-10-05T10:00');
   await noOverflow(page);
   await page.screenshot({ path: `test-results/create-competition-${info.project.name}.png`, fullPage: true });
   await page.getByRole('button', { name: 'สร้างการแข่งขัน', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('heading', { name: 'จัดการแข่งขัน', exact: true })).toBeVisible();
   expect(posts).toEqual([
     {
@@ -223,6 +259,7 @@ test('invalid upload is rejected without sending it to the API', async ({ page }
     .getByLabel(/ไฟล์คำตอบ/)
     .setInputFiles({ name: 'ok.sol', mimeType: 'text/plain', buffer: Buffer.from('5') });
   await page.getByRole('button', { name: 'เพิ่มเทสเคส', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('alert')).toContainText('ไฟล์ .in');
   expect(uploads).toEqual([]);
 });
@@ -322,13 +359,16 @@ test('speed leaderboard shows podium, profile photos and resilient fallbacks', a
     .locator('.speed-leaderboard')
     .screenshot({ path: `test-results/speed-leaderboard-${info.project.name}.png` });
   await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.speed-podium-card')).toHaveCount(3);
   expect(refreshes).toBe(2);
   entries.splice(1);
   await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.speed-podium-card')).toHaveCount(1);
   entries.splice(0);
   await page.getByRole('button', { name: 'รีเฟรชอันดับ' }).click();
+  await confirmIfVisible(page);
   await expect(page.getByText('สนามพร้อมแล้ว รอผู้ท้าชิงคนแรก')).toBeVisible();
 });
 
@@ -359,14 +399,17 @@ test('admin configures subtasks, assigns tests and uploads group members', async
   await page.getByLabel('ชื่อ subtask', { exact: true }).fill('ข้อมูลเล็ก');
   await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('n ≤ 100');
   await page.getByRole('button', { name: 'เพิ่ม subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.subtask-card')).toHaveCount(1);
   await page.getByLabel('ชื่อ subtask', { exact: true }).fill('ข้อมูลใหญ่');
   await page.getByLabel('คะแนน subtask', { exact: true }).fill('80');
   await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('n ≤ 200,000');
   await page.getByRole('button', { name: 'เพิ่ม subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.subtask-card')).toHaveCount(2);
   await page.getByLabel('Subtask ของ ตัวอย่าง', { exact: true }).selectOption('g1');
   await page.getByRole('button', { name: 'บันทึกกลุ่มของ ตัวอย่าง' }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.subtask-card').first()).toContainText('1 เทส');
   expect(state.testCases[0].score).toBe(0);
   await page.getByLabel('Subtask ของเทสนี้', { exact: true }).selectOption('g2');
@@ -393,11 +436,14 @@ test('admin configures subtasks, assigns tests and uploads group members', async
     await route.fulfill({ json: state.testCases[1] });
   });
   await page.getByRole('button', { name: 'เพิ่มเทสเคส', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.subtask-card').nth(1)).toContainText('1 เทส');
   await expect(page.getByText('100 / 100 คะแนน', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'แก้ไข subtask ข้อมูลเล็ก' }).click();
+  await confirmIfVisible(page);
   await page.getByLabel('เงื่อนไขข้อมูลของ subtask').fill('1 ≤ n ≤ 100');
   await page.getByRole('button', { name: 'บันทึก subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.locator('.subtask-card').first()).toContainText('1 ≤ n ≤ 100');
   await noOverflow(page);
   await page.screenshot({ path: `test-results/subtasks-admin-${info.project.name}.png`, fullPage: true });
@@ -452,10 +498,10 @@ test('submission shows all-or-nothing subtask scores and group performance', asy
   const cards = page.locator('.subtask-card');
   await expect(cards.first()).toContainText('20 / 20 คะแนน');
   await expect(cards.nth(1)).toContainText('0 / 80 คะแนน');
-  await expect(cards.nth(1)).toContainText('1 / 2 เทสผ่าน');
+  await expect(cards.nth(1)).toContainText('ตรวจ 2 / 2 เทส');
   await expect(cards.nth(1)).toContainText('1,020 ms รวม');
   await expect(cards.nth(1)).toContainText('8,192 KB สูงสุด');
-  await expect(page.getByText('คะแนนรวมใน ข้อมูลเล็ก', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ผลตรวจรายเทสเคส' })).toHaveCount(0);
   await noOverflow(page);
   await page.screenshot({ path: `test-results/subtasks-result-${info.project.name}.png`, fullPage: true });
 });
@@ -497,10 +543,12 @@ test('admin bulk imports a ZIP into a subtask and preserves errors without addin
   await page.getByLabel('Subtask สำหรับ ZIP', { exact: true }).selectOption('g1');
   await page.getByLabel(/ไฟล์ ZIP ของชุดทดสอบ/).setInputFiles('tests/fixtures/subtask-cases.zip');
   await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('alert')).toContainText('เทส 02 ต้องมีไฟล์');
   expect(state.testCases).toHaveLength(1);
   await expect(page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('status')).toContainText('เพิ่ม 2 เทสจาก ZIP เข้า subtask แล้ว');
   await expect(page.locator('.subtask-card')).toContainText('2 เทส');
   expect(state.testCases).toHaveLength(3);
@@ -514,6 +562,7 @@ test('admin bulk imports a ZIP into a subtask and preserves errors without addin
     .setInputFiles({ name: 'not-zip.in', mimeType: 'text/plain', buffer: Buffer.from('1') });
   await page.getByLabel('Subtask สำหรับ ZIP', { exact: true }).selectOption('g1');
   await page.getByRole('button', { name: 'นำเข้า ZIP เข้า subtask', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('alert')).toContainText('ไฟล์ต้องเป็น .zip');
   expect(imports).toBe(2);
 });
@@ -561,9 +610,11 @@ test('admin selects multiple test cases to publish examples without changing sco
     true,
   );
   await publish.click();
+  await confirmIfVisible(page);
   await expect(page.getByRole('alert')).toContainText('บันทึกไม่ได้');
   await expect(page.getByRole('checkbox', { name: 'เลือกเทส เล็ก', exact: true })).toBeChecked();
   await publish.click();
+  await confirmIfVisible(page);
   await expect(page.getByText('ตัวอย่างเผยแพร่', { exact: true })).toHaveCount(2);
   await expect(page.getByText('เทสลับ', { exact: true })).toHaveCount(1);
   await expect(publish).toBeDisabled();
@@ -576,7 +627,44 @@ test('admin selects multiple test cases to publish examples without changing sco
   await page.goto('/admin/problems/p1');
   await page.getByRole('checkbox', { name: 'เลือกเทสทั้งหมด', exact: true }).check();
   await page.getByRole('button', { name: 'ตั้งเป็นเทสลับ', exact: true }).click();
+  await confirmIfVisible(page);
   await expect(page.getByText('เทสลับ', { exact: true })).toHaveCount(3);
   await page.goto('/problems/p1');
   await expect(page.getByText('โจทย์นี้ไม่มีตัวอย่างเผยแพร่')).toBeVisible();
+});
+
+test('grouped submission history and admin respondents are responsive', async ({ page }, info) => {
+  await mockApi(page, true);
+  await page.goto('/submissions');
+  await page.getByRole('link', { name: 'ดูประวัติ', exact: true }).click();
+  await confirmIfVisible(page);
+  await expect(page.getByRole('link', { name: 'ดูผลและโค้ด' })).toBeVisible();
+  await page.goto('/admin/submissions');
+  await page.getByRole('link', { name: 'ดูผู้ตอบ', exact: true }).click();
+  await confirmIfVisible(page);
+  await expect(page.getByRole('button', { name: 'รีเซ็ตคะแนนทั้งข้อ' })).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/respondents-${info.project.name}.png`, fullPage: true });
+  await page.getByRole('link', { name: 'ดูประวัติและโค้ด' }).click();
+  await confirmIfVisible(page);
+  await page.getByRole('link', { name: 'ดูผลและโค้ด' }).click();
+  await confirmIfVisible(page);
+  await expect(page.getByText(submission.sourceCode!, { exact: true })).toBeVisible();
+});
+
+test('SweetAlert logout can be cancelled or confirmed', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('nr-grader-session', 'e2e-only-no-server-access'));
+  await page.route('**/api/auth/me', (route) => route.fulfill({ json: user }));
+  await page.route('**/api/problems', (route) => route.fulfill({ json: [problem] }));
+  await page.route('**/api/submissions/me', (route) => route.fulfill({ json: [] }));
+  await page.goto('/problems');
+  if (page.viewportSize()!.width < 768)
+    await page.getByRole('button', { name: 'เปิดเมนู', exact: true }).click();
+  await page.getByRole('button', { name: 'ออกจากระบบ', exact: true }).click();
+  await expect(page.locator('.swal2-popup')).toBeVisible();
+  await page.getByRole('button', { name: 'ยกเลิก', exact: true }).click();
+  await expect(page).toHaveURL(/problems$/);
+  await page.getByRole('button', { name: 'ออกจากระบบ', exact: true }).click();
+  await page.getByRole('button', { name: 'ยืนยัน', exact: true }).click();
+  await expect(page).toHaveURL(/login$/);
 });

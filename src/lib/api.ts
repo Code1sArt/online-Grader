@@ -1,3 +1,4 @@
+import { ActionCancelled, confirmAction } from './dialogs';
 const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 const key = 'nr-grader-session';
 export const tokenStore = {
@@ -13,13 +14,32 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function api<T>(path: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number; confirmation?: string } = {},
+): Promise<T> {
+  if (
+    ['POST', 'PATCH', 'DELETE'].includes(options.method?.toUpperCase() ?? '') &&
+    !path.startsWith('/auth/') &&
+    !path.startsWith('/playground/')
+  ) {
+    const text =
+      options.confirmation ??
+      (options.method === 'DELETE'
+        ? 'ยืนยันการลบรายการนี้? รายการที่ลบอาจไม่สามารถกู้คืนได้'
+        : path === '/submissions'
+          ? 'ส่งโค้ดนี้เพื่อตรวจคำตอบ?'
+          : path.endsWith('/join')
+            ? 'เข้าร่วมการแข่งขันนี้?'
+            : 'บันทึกการเปลี่ยนแปลงนี้?');
+    if (!(await confirmAction(text))) throw new ActionCancelled();
+  }
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   const token = tokenStore.get();
   if (token) headers.set('Authorization', `Bearer ${token}`);
   let response: Response;
-  const { timeoutMs = 20000, ...requestOptions } = options;
+  const { timeoutMs = 20000, confirmation: _confirmation, ...requestOptions } = options;
   const timeout = AbortSignal.timeout(timeoutMs);
   try {
     response = await fetch(`${base}${path}`, {

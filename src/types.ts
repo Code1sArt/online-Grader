@@ -40,6 +40,8 @@ export interface SubtaskResult {
   status: Verdict;
   passedCount: number;
   totalCount: number;
+  executedCount?: number;
+  skippedCount?: number;
   executionTimeMs: number | null;
   memoryUsedKb: number | null;
 }
@@ -104,6 +106,7 @@ export interface Submission {
   memoryUsedKb: number | null;
   submittedAt: string;
   judgedAt?: string;
+  scoreResetAt?: string | null;
   problem: Pick<Problem, 'id' | 'slug' | 'title' | 'maxScore'>;
   competitionId?: string | null;
   sourceCode?: string;

@@ -19,7 +19,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.9.0"
+    "react-router-dom": "^7.9.0",
+    "sweetalert2": "^11.26.25"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
