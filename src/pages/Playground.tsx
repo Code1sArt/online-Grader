@@ -122,7 +122,7 @@ function Runner({ language }: { language: Language }) {
       setResult(
         await api<PlaygroundRunResult>(
           '/playground/run',
-          json('POST', { language, sourceCode: code, stdin }),
+          { ...json('POST', { language, sourceCode: code, stdin }), timeoutMs: 45_000 },
         ),
       );
     } catch (caught) {
@@ -189,7 +189,7 @@ function Runner({ language }: { language: Language }) {
           onClick={() => void run()}
         >
           <Play size={17} fill="currentColor" />
-          {busy ? 'กำลังรัน…' : `รัน ${languageName(language)}`}
+          {busy ? 'กำลังรอคิว / รัน…' : `รัน ${languageName(language)}`}
         </button>
       </div>
       {result && (
