@@ -2939,3 +2939,98 @@ legend {
     white-space: normal;
   }
 }
+
+.markdown-editor-field {
+  min-width: 0;
+}
+.markdown-editor {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+.markdown-editor:focus-within {
+  border-color: var(--green);
+}
+.markdown-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: #f5f8f7;
+  border-bottom: 1px solid var(--line);
+}
+.markdown-editor-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: var(--ink);
+  background: transparent;
+}
+.markdown-editor-toolbar button:hover:not(:disabled),
+.markdown-editor-toolbar button[aria-pressed='true'],
+.markdown-editor-toolbar button[aria-expanded='true'] {
+  background: #dceee5;
+  color: var(--green);
+}
+.markdown-editor-toolbar .markdown-editor-preview-toggle {
+  margin-left: auto;
+  font-size: 12px;
+}
+.markdown-editor textarea {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  width: 100%;
+}
+.markdown-editor textarea:focus {
+  box-shadow: none;
+}
+.markdown-editor textarea.markdown-editor-source-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.markdown-editor-preview {
+  padding: 16px;
+  min-height: 160px;
+  overflow-wrap: anywhere;
+}
+.markdown-editor-table-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.markdown-editor-table-options label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+.markdown-editor-table-options select {
+  min-width: 72px;
+}
+.markdown-editor-preview blockquote {
+  border-left: 3px solid var(--green);
+  margin-left: 0;
+  padding-left: 16px;
+  color: var(--muted);
+}
+.markdown-editor-field > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}

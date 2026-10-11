@@ -5,6 +5,7 @@ import { api, json, message } from '../lib/api';
 import { useResource, number } from '../lib/hooks';
 import { Badge, Difficulty, Empty, ErrorBox, Field, Heading, Loading } from '../components/ui';
 import type { Language, Problem, Subtask, TestCase } from '../types';
+import { MarkdownEditor } from '../components/MarkdownEditor';
 
 export function AdminProblems() {
   const { data, loading, error, reload } = useResource<Problem[]>('/problems');
@@ -244,31 +245,35 @@ function ProblemEditor({
               />
             </Field>
           </div>
-          <Field label="เนื้อหาโจทย์" hint="รองรับ Markdown รวมถึงตาราง">
-            <textarea
-              name="statement"
-              required
-              rows={9}
-              defaultValue={problem?.statement}
-              placeholder="อธิบายสิ่งที่ผู้เรียนต้องเขียนโปรแกรม…"
-            />
-          </Field>
+          <MarkdownEditor
+            label="เนื้อหาโจทย์"
+            name="statement"
+            required
+            rows={9}
+            defaultValue={problem?.statement}
+            placeholder="อธิบายสิ่งที่ผู้เรียนต้องเขียนโปรแกรม…"
+          />
           <div className="form-row">
-            <Field label="รูปแบบข้อมูลนำเข้า">
-              <textarea name="inputDescription" rows={4} defaultValue={problem?.inputDescription} />
-            </Field>
-            <Field label="รูปแบบข้อมูลส่งออก">
-              <textarea name="outputDescription" rows={4} defaultValue={problem?.outputDescription} />
-            </Field>
-          </div>
-          <Field label="ข้อจำกัดของข้อมูล">
-            <textarea
-              name="constraints"
-              rows={6}
-              defaultValue={problem?.constraints}
-              placeholder={'เช่น 1 ≤ N ≤ 100,000\nกด Enter เพื่อขึ้นบรรทัดใหม่'}
+            <MarkdownEditor
+              label="รูปแบบข้อมูลนำเข้า"
+              name="inputDescription"
+              rows={4}
+              defaultValue={problem?.inputDescription}
             />
-          </Field>
+            <MarkdownEditor
+              label="รูปแบบข้อมูลส่งออก"
+              name="outputDescription"
+              rows={4}
+              defaultValue={problem?.outputDescription}
+            />
+          </div>
+          <MarkdownEditor
+            label="ข้อจำกัดของข้อมูล"
+            name="constraints"
+            rows={6}
+            defaultValue={problem?.constraints}
+            placeholder={'เช่น 1 ≤ N ≤ 100,000\nกด Enter เพื่อขึ้นบรรทัดใหม่'}
+          />
         </section>
         <section className="panel form-panel">
           <h2>เงื่อนไขและคะแนน</h2>

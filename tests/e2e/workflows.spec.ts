@@ -806,3 +806,43 @@ test('admin deletes problems and competitions through confirmation', async ({ pa
   await page.locator('.swal2-confirm').click();
   await expect(page.getByRole('button', { name: 'ลบการแข่งขัน', exact: true })).toHaveCount(0);
 });
+
+test('admin formats problem content, previews tables and saves Markdown', async ({ page }, info) => {
+  await mockApi(page, true);
+  let saved = { ...problem };
+  await page.route('**/api/problems/p1', async (route) => {
+    if (route.request().method() === 'PATCH') saved = { ...saved, ...route.request().postDataJSON() };
+    await route.fulfill({ json: saved });
+  });
+  await page.goto('/admin/problems/p1');
+  const editor = page
+    .locator('.markdown-editor-field')
+    .filter({ has: page.getByText('เนื้อหาโจทย์', { exact: true }) });
+  const input = editor.getByRole('textbox');
+  await input.fill('ข้อความโจทย์');
+  await input.selectText();
+  await editor.getByRole('button', { name: 'ตัวหนา', exact: true }).click();
+  await expect(input).toHaveValue('**ข้อความโจทย์**');
+  await expect
+    .poll(() => input.evaluate((node: HTMLTextAreaElement) => node.selectionEnd))
+    .toBe('**ข้อความโจทย์'.length);
+  for (let step = 0; step < 5; step++) await input.press('ArrowRight');
+  await editor.getByRole('button', { name: 'แทรกตาราง' }).click();
+  await editor.getByLabel('คอลัมน์', { exact: true }).selectOption('3');
+  await editor.getByLabel('แถวข้อมูล', { exact: true }).selectOption('2');
+  await editor.getByRole('button', { name: 'เพิ่มตาราง', exact: true }).click();
+  await editor.getByRole('button', { name: 'ดูตัวอย่าง' }).click();
+  await expect(editor.locator('strong')).toHaveText('ข้อความโจทย์');
+  await expect(editor.getByRole('columnheader')).toHaveCount(3);
+  await expect(editor.getByRole('row')).toHaveCount(3);
+  await noOverflow(page);
+  await page.screenshot({ path: `test-results/problem-editor-${info.project.name}.png`, fullPage: true });
+  await page.getByRole('button', { name: 'บันทึกโจทย์', exact: true }).click();
+  await confirmIfVisible(page);
+  await expect
+    .poll(() => saved.statement)
+    .toContain('**ข้อความโจทย์**\n\n| หัวข้อ 1 | หัวข้อ 2 | หัวข้อ 3 |');
+  await page.goto('/problems/p1');
+  await expect(page.locator('.statement-body strong').filter({ hasText: 'ข้อความโจทย์' })).toBeVisible();
+  await expect(page.locator('.statement-body').getByRole('columnheader')).toHaveCount(3);
+});
