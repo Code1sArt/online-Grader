@@ -3,6 +3,32 @@ import { describe, expect, it } from 'vitest';
 import { ProblemMarkdown } from '../src/components/ProblemMarkdown';
 
 describe('problem Markdown', () => {
+  it('renders superscript and subscript in prose and tables with inline Markdown', () => {
+    const { container } = render(
+      <ProblemMarkdown>{`n<sup>2</sup> + A<sub>**i**</sub>
+
+| สูตร |
+| --- |
+| 10<sup>9</sup> |`}</ProblemMarkdown>,
+    );
+    expect([...container.querySelectorAll('sup')].map((node) => node.textContent)).toEqual(['2', '9']);
+    expect(container.querySelector('sub strong')).toHaveTextContent('i');
+    expect(within(screen.getByRole('table')).getByRole('cell')).toHaveTextContent('109');
+  });
+
+  it('preserves literal code and ignores unsafe HTML and mismatched tags', () => {
+    const { container } = render(
+      <ProblemMarkdown>
+        {
+          '`n<sup>2</sup>` and A<sub>i</sup> and <sup onclick="alert(1)">x</sup> and <img src="x" onerror="alert(1)"> <script>alert(1)</script>'
+        }
+      </ProblemMarkdown>,
+    );
+    expect(container.querySelector('code')).toHaveTextContent('n<sup>2</sup>');
+    expect(container.querySelector('sup, sub, img, script, [onclick], [onerror]')).toBeNull();
+    expect(container).toHaveTextContent('A<sub>i</sup>');
+  });
+
   it('renders pipe tables with column alignment and inline formatting', () => {
     render(
       <ProblemMarkdown>{`| ตัวแปร | ความหมาย | ค่า |

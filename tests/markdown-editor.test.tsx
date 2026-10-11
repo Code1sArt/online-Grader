@@ -10,6 +10,32 @@ function select(input: HTMLTextAreaElement, start: number, end: number) {
 }
 
 describe('Markdown editor', () => {
+  it.each([
+    { label: 'เลขยกกำลัง', tag: 'sup', text: '2' },
+    { label: 'ตัวห้อย', tag: 'sub', text: 'i' },
+  ])('formats and toggles $label and renders its preview', async ({ label, tag, text }) => {
+    const { container } = render(
+      <form>
+        <MarkdownEditor label="เนื้อหาโจทย์" name="statement" defaultValue={`A${text} + B`} />
+      </form>,
+    );
+    const input = screen.getByRole('textbox', { name: 'เนื้อหาโจทย์' }) as HTMLTextAreaElement;
+    select(input, 1, 2);
+    await userEvent.click(screen.getByRole('button', { name: label, exact: true }));
+    const formatted = `A<${tag}>${text}</${tag}> + B`;
+    expect(input).toHaveValue(formatted);
+    await waitFor(() => expect(input.selectionStart).toBe(6));
+    await userEvent.click(screen.getByRole('button', { name: label, exact: true }));
+    expect(input).toHaveValue(`A${text} + B`);
+    await waitFor(() => expect(input.selectionStart).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: label, exact: true }));
+    await userEvent.click(screen.getByRole('button', { name: 'ดูตัวอย่าง' }));
+    expect(screen.getByRole('region', { name: 'ตัวอย่างข้อความ' }).querySelector(tag)).toHaveTextContent(
+      text,
+    );
+    expect(new FormData(container.querySelector('form')!).get('statement')).toBe(formatted);
+  });
+
   it('formats only the selection, preserves surrounding text and toggles formatting', async () => {
     render(<MarkdownEditor label="เนื้อหาโจทย์" name="statement" defaultValue="ก่อน ข้อความ หลัง" />);
     const input = screen.getByRole('textbox', { name: 'เนื้อหาโจทย์' }) as HTMLTextAreaElement;

@@ -846,3 +846,41 @@ test('admin formats problem content, previews tables and saves Markdown', async 
   await expect(page.locator('.statement-body strong').filter({ hasText: 'ข้อความโจทย์' })).toBeVisible();
   await expect(page.locator('.statement-body').getByRole('columnheader')).toHaveCount(3);
 });
+
+test('admin saves superscript and subscript and students see the formatting', async ({ page }) => {
+  await mockApi(page, true);
+  let saved = { ...problem };
+  await page.route('**/api/problems/p1', async (route) => {
+    if (route.request().method() === 'PATCH') saved = { ...saved, ...route.request().postDataJSON() };
+    await route.fulfill({ json: saved });
+  });
+  await page.goto('/admin/problems/p1');
+  const editor = page
+    .locator('.markdown-editor-field')
+    .filter({ has: page.getByText('เนื้อหาโจทย์', { exact: true }) });
+  const input = editor.getByRole('textbox');
+  await input.fill('n2 + Ai');
+  await input.evaluate((node: HTMLTextAreaElement) => {
+    node.focus();
+    node.setSelectionRange(1, 2);
+  });
+  await editor.getByRole('button', { name: 'เลขยกกำลัง', exact: true }).click();
+  await expect(input).toHaveValue('n<sup>2</sup> + Ai');
+  await expect.poll(() => input.evaluate((node: HTMLTextAreaElement) => node.selectionStart)).toBe(6);
+  await input.evaluate((node: HTMLTextAreaElement) => {
+    node.focus();
+    node.setSelectionRange(node.value.length - 1, node.value.length);
+  });
+  await editor.getByRole('button', { name: 'ตัวห้อย', exact: true }).click();
+  await expect(input).toHaveValue('n<sup>2</sup> + A<sub>i</sub>');
+  await editor.getByRole('button', { name: 'ดูตัวอย่าง' }).click();
+  await expect(editor.locator('sup')).toHaveText('2');
+  await expect(editor.locator('sub')).toHaveText('i');
+  await noOverflow(page);
+  await page.getByRole('button', { name: 'บันทึกโจทย์', exact: true }).click();
+  await confirmIfVisible(page);
+  await expect.poll(() => saved.statement).toBe('n<sup>2</sup> + A<sub>i</sub>');
+  await page.goto('/problems/p1');
+  await expect(page.locator('.statement-body sup')).toHaveText('2');
+  await expect(page.locator('.statement-body sub')).toHaveText('i');
+});
