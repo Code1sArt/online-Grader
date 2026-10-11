@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Save, Upload, Trash2, Pencil, ChevronLeft, Eye } from 'lucide-react';
 import { api, json, message } from '../lib/api';
+import { confirmAction } from '../lib/dialogs';
 import { useResource, number } from '../lib/hooks';
 import { Badge, Difficulty, Empty, ErrorBox, Field, Heading, Loading } from '../components/ui';
 import type { Language, Problem, Subtask, TestCase } from '../types';
@@ -103,12 +104,12 @@ export function AdminProblems() {
 }
 export function AdminProblemEditor() {
   const { id } = useParams();
-  return id ? <ExistingProblem id={id} /> : <ProblemEditor />;
+  return id ? <ExistingProblem key={id} id={id} /> : <ProblemEditor />;
 }
 function ExistingProblem({ id }: { id: string }) {
   const [zipNotice, setZipNotice] = useState('');
-  const { data, loading, error, reload } = useResource<Problem>(`/problems/${id}`);
-  if (loading) return <Loading />;
+  const { data, loading, error, reload } = useResource<Problem>(`/problems/${id}`, true);
+  if (loading && !data) return <Loading />;
   if (!data)
     return (
       <div className="page">
@@ -445,15 +446,27 @@ function TestCaseEditor({
       setBusy(false);
     }
   }
-  async function remove(id: string) {
+  async function remove(ids: string[]) {
+    if (busy || locked || !ids.length) return;
     setBusy(true);
     setError('');
+    const deletedIds: string[] = [];
     try {
-      await api(`/problems/${problem.id}/test-cases/${id}`, { method: 'DELETE' });
-      reload();
+      if (
+        !(await confirmAction(
+          `ลบชุดทดสอบที่เลือก ${number(ids.length)} รายการ? รายการที่ลบไม่สามารถกู้คืนได้`,
+        ))
+      )
+        return;
+      for (const id of ids) {
+        await api(`/problems/${problem.id}/test-cases/${id}`, { method: 'DELETE', confirmation: false });
+        deletedIds.push(id);
+      }
     } catch (e) {
-      setError(message(e));
+      setError(`ลบแล้ว ${number(deletedIds.length)} / ${number(ids.length)} รายการ: ${message(e)}`);
     } finally {
+      setSelectedIds((current) => current.filter((id) => !deletedIds.includes(id)));
+      if (deletedIds.length) reload();
       setBusy(false);
     }
   }
@@ -489,6 +502,22 @@ function TestCaseEditor({
             เลือก {number(selectedIds.length)} / {number(tests.length)} เทส
           </span>
           <div className="button-row">
+            <button
+              className="button secondary"
+              disabled={busy || locked || !selectedIds.length}
+              onClick={() => void remove(selectedIds)}
+            >
+              <Trash2 size={16} />
+              ลบที่เลือก
+            </button>
+            <button
+              className="button secondary"
+              disabled={busy || locked}
+              onClick={() => void remove(tests.map((test) => test.id))}
+            >
+              <Trash2 size={16} />
+              ลบทั้งหมด
+            </button>
             <button
               className="button secondary"
               disabled={busy || !selectedIds.length}
@@ -562,7 +591,7 @@ function TestCaseEditor({
                     <button
                       className="icon-button danger"
                       disabled={busy || locked}
-                      onClick={() => void remove(t.id)}
+                      onClick={() => void remove([t.id])}
                       aria-label={`ลบ ${t.name}`}
                     >
                       <Trash2 size={17} />
@@ -837,6 +866,10 @@ function TestCaseAssignment({
   const [score, setScore] = useState(Number(test.score || 0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  useEffect(() => {
+    setSubtaskId(test.subtaskId || '');
+    setScore(Number(test.score || 0));
+  }, [test.subtaskId, test.score]);
   if (!problem.scoringEditable)
     return (
       <>
@@ -845,29 +878,39 @@ function TestCaseAssignment({
           : `${number(test.score || 0)} คะแนน`}
       </>
     );
-  async function save(event: FormEvent) {
-    event.preventDefault();
+  async function save(nextSubtaskId = subtaskId, automatic = false) {
     if (busy) return;
     setBusy(true);
     setError('');
     try {
-      await api(
-        `/problems/${problem.id}/test-cases/${test.id}`,
-        json('PATCH', { subtaskId, score: subtaskId ? 0 : score }),
-      );
+      await api(`/problems/${problem.id}/test-cases/${test.id}`, {
+        ...json('PATCH', { subtaskId: nextSubtaskId, score: nextSubtaskId ? 0 : score }),
+        ...(automatic ? { confirmation: false as const } : {}),
+      });
       reload();
     } catch (caught) {
+      if (automatic) setSubtaskId(test.subtaskId || '');
       setError(message(caught));
     } finally {
       setBusy(false);
     }
   }
   return (
-    <form className="test-assignment" onSubmit={(event) => void save(event)}>
+    <form
+      className="test-assignment"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <select
         aria-label={`Subtask ของ ${test.name}`}
         value={subtaskId}
-        onChange={(event) => setSubtaskId(event.target.value)}
+        onChange={(event) => {
+          const nextSubtaskId = event.target.value;
+          setSubtaskId(nextSubtaskId);
+          void save(nextSubtaskId, true);
+        }}
         disabled={busy}
       >
         <option value="">คะแนนรายเทส</option>

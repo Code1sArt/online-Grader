@@ -16,9 +16,10 @@ export class ApiError extends Error {
 }
 export async function api<T>(
   path: string,
-  options: RequestInit & { timeoutMs?: number; confirmation?: string } = {},
+  options: RequestInit & { timeoutMs?: number; confirmation?: string | false } = {},
 ): Promise<T> {
   if (
+    options.confirmation !== false &&
     ['POST', 'PATCH', 'DELETE'].includes(options.method?.toUpperCase() ?? '') &&
     !path.startsWith('/auth/') &&
     !path.startsWith('/playground/')

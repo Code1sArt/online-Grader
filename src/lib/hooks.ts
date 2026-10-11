@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, message } from './api';
 
-export function useResource<T>(path: string) {
+export function useResource<T>(path: string, keepDataOnReload = false) {
   const [data, setData] = useState<T>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -9,7 +9,7 @@ export function useResource<T>(path: string) {
   const reload = useCallback(() => setRevision((n) => n + 1), []);
   useEffect(() => {
     const controller = new AbortController();
-    setData(undefined);
+    if (!keepDataOnReload) setData(undefined);
     setLoading(true);
     setError('');
     api<T>(path, { signal: controller.signal })
@@ -23,7 +23,7 @@ export function useResource<T>(path: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [path, revision]);
+  }, [path, revision, keepDataOnReload]);
   return { data, error, loading, reload };
 }
 export const dateTime = (value: string) =>
