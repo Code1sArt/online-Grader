@@ -3,8 +3,10 @@ import { Trash2 } from 'lucide-react';
 import { ErrorBox, Heading } from '../components/ui';
 import { api, message } from '../lib/api';
 import { number } from '../lib/hooks';
+import { useSubmissionDrafts } from '../lib/drafts';
 
 export function AdminClearSubmissions() {
+  const { applyVersion } = useSubmissionDrafts();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -15,11 +17,15 @@ export function AdminClearSubmissions() {
     setError('');
     setNotice('');
     try {
-      const result = await api<{ deletedCount: number }>('/submissions/admin/all', {
-        method: 'DELETE',
-        confirmation:
-          'ล้างประวัติการส่ง โค้ด ผลตรวจ และคะแนนทั้งหมดของผู้ใช้ทุกคน ทั้งการฝึกทำโจทย์และการแข่งขัน? คะแนนใน Home และตารางอันดับการแข่งขันจะถูกล้างด้วย การลบนี้ถาวรและกู้คืนไม่ได้',
-      });
+      const result = await api<{ deletedCount: number; submissionDraftVersion: number }>(
+        '/submissions/admin/all',
+        {
+          method: 'DELETE',
+          confirmation:
+            'ล้างประวัติการส่ง โค้ด ฉบับร่างโจทย์ ผลตรวจ และคะแนนทั้งหมดของผู้ใช้ทุกคน ทั้งการฝึกทำโจทย์และการแข่งขัน? คะแนนใน Home และตารางอันดับการแข่งขันจะถูกล้างด้วย การลบนี้ถาวรและกู้คืนไม่ได้',
+        },
+      );
+      applyVersion(result.submissionDraftVersion);
       setNotice(`ล้างประวัติการส่งและคะแนนทั้งหมดแล้ว รวม ${number(result.deletedCount)} คำตอบ`);
     } catch (caught) {
       setError(message(caught));
@@ -56,6 +62,10 @@ export function AdminClearSubmissions() {
           </p>
           <p>
             <strong>การลบนี้ถาวรและไม่สามารถกู้คืนได้</strong>
+          </p>
+          <p>
+            ฉบับร่างโค้ดโจทย์ในเครื่องนี้จะถูกล้างทันที เครื่องอื่นจะล้างเมื่อเชื่อมต่อและตรวจพบการล้างข้อมูล
+            ฉบับร่างใน Playground ยังคงอยู่
           </p>
           <button type="button" className="button danger" disabled={busy} onClick={() => void clear()}>
             <Trash2 size={18} /> {busy ? 'กำลังดำเนินการ…' : 'ล้างประวัติการส่งและคะแนนทั้งหมด'}

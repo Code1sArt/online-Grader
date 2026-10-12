@@ -16,6 +16,7 @@ export interface Session {
 }
 export interface SystemSettings {
   playgroundEnabled: boolean;
+  submissionDraftVersion?: number;
   updatedAt: string | null;
 }
 export interface PlaygroundRunResult {

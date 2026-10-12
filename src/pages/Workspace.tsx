@@ -9,6 +9,7 @@ import { Clock3, Cpu, Send, RotateCcw, Save, ChevronLeft, FileCode2 } from 'luci
 import { useAuth } from '../auth';
 import { api, json, message } from '../lib/api';
 import { codeTemplates } from '../lib/code';
+import { useSubmissionDrafts, readSubmissionDraft, writeSubmissionDraft } from '../lib/drafts';
 import { useResource, languageName, number } from '../lib/hooks';
 import { Difficulty, ErrorBox, Loading } from '../components/ui';
 import type { Language, Problem } from '../types';
@@ -26,6 +27,7 @@ export function Workspace() {
   return <ProblemWorkspace key={problem.id} problem={problem} />;
 }
 function ProblemWorkspace({ problem }: { problem: Problem }) {
+  const drafts = useSubmissionDrafts();
   const [language, setLanguage] = useState<Language>(problem.allowedLanguages[0] || 'CPP');
   const [params] = useSearchParams();
   const competitionId = params.get('competitionId');
@@ -148,12 +150,20 @@ function ProblemWorkspace({ problem }: { problem: Problem }) {
               ))}
             </select>
           </div>
-          <CodePane
-            key={`${problem.id}:${language}:${competitionId || 'practice'}`}
-            language={language}
-            problem={problem}
-            competitionId={competitionId}
-          />
+          {!drafts.ready ? (
+            drafts.error ? (
+              <ErrorBox error={drafts.error} retry={drafts.refresh} />
+            ) : (
+              <Loading />
+            )
+          ) : (
+            <CodePane
+              key={`${problem.id}:${language}:${competitionId || 'practice'}:${drafts.version}`}
+              language={language}
+              problem={problem}
+              competitionId={competitionId}
+            />
+          )}
         </section>
       </div>
     </div>
@@ -169,27 +179,19 @@ function CodePane({
   competitionId: string | null;
 }) {
   const { user } = useAuth();
+  const { version } = useSubmissionDrafts();
   const navigate = useNavigate();
-  const draftKey = `nr-draft:${user?.id}:${problem.id}:${language}:${competitionId || 'practice'}`;
+  const draftKey = `nr-draft:${user?.id}:${problem.id}:${language}:${competitionId || 'practice'}${version ? `:v${version}` : ''}`;
   const [code, setCode] = useState(() => {
-    try {
-      return localStorage.getItem(draftKey) ?? codeTemplates[language];
-    } catch {
-      return codeTemplates[language];
-    }
+    return readSubmissionDraft(draftKey, version, codeTemplates[language]);
   });
   const [saved, setSaved] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   useEffect(() => {
-    try {
-      localStorage.setItem(draftKey, code);
-      setSaved(true);
-    } catch {
-      setSaved(false);
-    }
-  }, [code, draftKey]);
+    setSaved(writeSubmissionDraft(draftKey, version, code));
+  }, [code, draftKey, version]);
   async function submit() {
     if (lock.current) return;
     lock.current = true;

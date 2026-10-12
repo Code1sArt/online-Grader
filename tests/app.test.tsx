@@ -6,6 +6,8 @@ import Swal from 'sweetalert2';
 import App from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { tokenStore } from '../src/lib/api';
+import { draftVersionKey, writeSubmissionDraft } from '../src/lib/drafts';
+import { codeTemplates } from '../src/lib/code';
 import { competition, problem, submission, user } from './fixtures';
 
 vi.mock('../src/components/GoogleSignIn', () => ({
@@ -38,12 +40,14 @@ let playgroundEnabled: boolean;
 let groupedSubmission: boolean;
 let privacyRequired: boolean;
 let memberDeleted: boolean;
+let submissionDraftVersion: number;
 beforeEach(() => {
   requests = [];
   role = 'USER';
   groupedSubmission = false;
   privacyRequired = false;
   memberDeleted = false;
+  submissionDraftVersion = 0;
   failProblems = false;
   joined = false;
   playgroundEnabled = false;
@@ -53,7 +57,10 @@ beforeEach(() => {
       const path = url.replace('/api', '').split('?')[0];
       requests.push({ path, options });
       if (path === '/submissions/admin/all' && options.method === 'DELETE')
-        return new Response(JSON.stringify({ deletedCount: 2 }), { status: 200 });
+        return new Response(
+          JSON.stringify({ deletedCount: 2, submissionDraftVersion: ++submissionDraftVersion }),
+          { status: 200 },
+        );
       if (path === '/problems' && failProblems)
         return new Response(JSON.stringify({ message: 'API unavailable' }), { status: 503 });
       const payload =
@@ -186,7 +193,11 @@ beforeEach(() => {
                                                           ).playgroundEnabled),
                                                           updatedAt: new Date().toISOString(),
                                                         }
-                                                      : { playgroundEnabled, updatedAt: null }
+                                                      : {
+                                                          playgroundEnabled,
+                                                          submissionDraftVersion,
+                                                          updatedAt: null,
+                                                        }
                                                     : path === '/playground/run'
                                                       ? {
                                                           status: 'ACCEPTED',
@@ -289,10 +300,19 @@ describe('NR Grader user workflows', () => {
   });
   it('opens the clear-all admin menu and confirms permanent deletion', async () => {
     role = 'ADMIN';
+    localStorage.setItem('nr-draft:test-user:p1:CPP:practice', 'old cpp');
+    localStorage.setItem('nr-draft:test-user:p1:PYTHON:c1', 'old competition code');
+    localStorage.setItem('nr-draft:another-user:p2:CPP:practice', 'other account code');
+    localStorage.setItem('nr-playground-code:test-user:PYTHON', 'playground code');
+    localStorage.setItem('unrelated-setting', 'keep');
     mount('/admin/submissions');
     await userEvent.click(await screen.findByRole('link', { name: 'ล้างประวัติและคะแนน' }));
     await userEvent.click(await screen.findByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' }));
     expect(await screen.findByRole('status')).toHaveTextContent('รวม 2 คำตอบ');
+    expect(Object.keys(localStorage).filter((key) => key.startsWith('nr-draft:'))).toEqual([]);
+    expect(localStorage.getItem(draftVersionKey)).toBe('1');
+    expect(localStorage.getItem('nr-playground-code:test-user:PYTHON')).toBe('playground code');
+    expect(localStorage.getItem('unrelated-setting')).toBe('keep');
     expect(requests.filter((row) => row.path === '/submissions/admin/all')).toEqual([
       expect.objectContaining({ options: expect.objectContaining({ method: 'DELETE' }) }),
     ]);
@@ -302,11 +322,44 @@ describe('NR Grader user workflows', () => {
   });
   it('sends no deletion when clearing all submissions is cancelled', async () => {
     role = 'ADMIN';
+    localStorage.setItem('nr-draft:test-user:p1:CPP:practice', 'keep draft');
     vi.mocked(Swal.fire).mockResolvedValueOnce({ isConfirmed: false, isDenied: false, isDismissed: true });
     mount('/admin/submissions/clear');
     await userEvent.click(await screen.findByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' }));
     expect(requests.some((row) => row.path === '/submissions/admin/all')).toBe(false);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(localStorage.getItem('nr-draft:test-user:p1:CPP:practice')).toBe('keep draft');
+  });
+  it('clears drafts left on another device before opening its editor after an admin reset', async () => {
+    submissionDraftVersion = 1;
+    localStorage.setItem('nr-draft:test-user:p1:CPP:practice', 'old code');
+    mount('/problems/p1');
+    expect(await screen.findByRole('textbox', { name: 'ตัวแก้ไขโค้ด' })).toHaveValue(codeTemplates.CPP);
+    expect(localStorage.getItem('nr-draft:test-user:p1:CPP:practice')).toBeNull();
+    expect(localStorage.getItem(draftVersionKey)).toBe('1');
+  });
+  it('resets an open editor on focus when another admin cleared submissions and preserves new drafts', async () => {
+    const oldKey = 'nr-draft:test-user:p1:CPP:practice';
+    localStorage.setItem(oldKey, 'old code');
+    mount('/problems/p1');
+    expect(await screen.findByRole('textbox', { name: 'ตัวแก้ไขโค้ด' })).toHaveValue('old code');
+    submissionDraftVersion = 1;
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'ตัวแก้ไขโค้ด' })).toHaveValue(codeTemplates.CPP),
+    );
+    expect(localStorage.getItem(oldKey)).toBeNull();
+    expect(writeSubmissionDraft(oldKey, 0, 'stale tab code')).toBe(false);
+    expect(localStorage.getItem(oldKey)).toBeNull();
+    const editor = screen.getByRole('textbox', { name: 'ตัวแก้ไขโค้ด' });
+    await userEvent.clear(editor);
+    await userEvent.type(editor, 'new code');
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() =>
+      expect(requests.filter((row) => row.path === '/settings').length).toBeGreaterThanOrEqual(3),
+    );
+    expect(editor).toHaveValue('new code');
+    expect(localStorage.getItem(`${oldKey}:v1`)).toBe('new code');
   });
   it('denies the clear-all page and menu to regular users', async () => {
     mount('/admin/submissions/clear');

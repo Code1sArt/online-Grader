@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes, Link } from 'react-router-dom';
 import { Protected } from './auth';
 import { Layout } from './components/Layout';
+import { SubmissionDraftProvider } from './lib/drafts';
 import { Empty, Loading } from './components/ui';
 import { Home } from './pages/Home';
 import { AdminMembers, MemberHistory } from './pages/AdminMembers';
@@ -40,7 +41,13 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<Protected />}>
-        <Route element={<Layout />}>
+        <Route
+          element={
+            <SubmissionDraftProvider>
+              <Layout />
+            </SubmissionDraftProvider>
+          }
+        >
           <Route index element={<Home />} />
           <Route path="problems" element={<Problems />} />
           <Route path="problems/:id" element={<Workspace />} />

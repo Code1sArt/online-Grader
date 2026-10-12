@@ -6,7 +6,7 @@ test('admin clears all history only after confirmation', async ({ page }, info) 
   await page.route('**/api/submissions/admin/all', async (route) => {
     expect(route.request().method()).toBe('DELETE');
     deletes += 1;
-    await route.fulfill({ json: { deletedCount: 2 } });
+    await route.fulfill({ json: { deletedCount: 2, submissionDraftVersion: 1 } });
   });
   await page.goto('/admin/submissions');
   if (info.project.name === 'mobile') await page.getByRole('button', { name: 'เปิดเมนู' }).click();
@@ -32,6 +32,49 @@ test('admin clears all history only after confirmation', async ({ page }, info) 
 async function confirmIfVisible(page: Page) {
   if (await page.locator('.swal2-popup').isVisible()) await page.locator('.swal2-confirm').click();
 }
+test('clears local drafts in an open tab and on another device after admin reset', async ({
+  page,
+  context,
+  browser,
+}) => {
+  let version = 0;
+  const admin = await context.newPage();
+  const remoteContext = await browser.newContext();
+  const remote = await remoteContext.newPage();
+  try {
+    for (const target of [page, admin, remote]) {
+      await mockApi(target, true);
+      await target.route('**/api/settings', (route) =>
+        route.fulfill({ json: { playgroundEnabled: true, submissionDraftVersion: version } }),
+      );
+    }
+    await page.goto('/problems/p1');
+    await page.locator('.cm-content').fill('old shared code');
+    await remote.goto('http://127.0.0.1:5174/problems/p1');
+    await remote.locator('.cm-content').fill('old remote code');
+    await admin.route('**/api/submissions/admin/all', (route) => {
+      version += 1;
+      return route.fulfill({ json: { deletedCount: 2, submissionDraftVersion: version } });
+    });
+    await admin.goto('/admin/submissions/clear');
+    await admin.getByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' }).click();
+    await admin.locator('.swal2-confirm').click();
+    await expect(admin.getByRole('status')).toContainText('รวม 2 คำตอบ');
+    await expect(page.locator('.cm-content')).not.toContainText('old shared code');
+    expect(await page.evaluate(() => localStorage.getItem('nr-draft:test-user:p1:CPP:practice'))).toBeNull();
+    await remote.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(remote.locator('.cm-content')).not.toContainText('old remote code');
+    expect(
+      await remote.evaluate(() => localStorage.getItem('nr-draft:test-user:p1:CPP:practice')),
+    ).toBeNull();
+    await page.locator('.cm-content').fill('new draft after reset');
+    await page.reload();
+    await expect(page.locator('.cm-content')).toHaveText('new draft after reset');
+  } finally {
+    await admin.close();
+    await remoteContext.close();
+  }
+});
 async function mockApi(page: Page, admin = false) {
   let joined = false;
   await page.addInitScript(() => sessionStorage.setItem('nr-grader-session', 'e2e-only-no-server-access'));

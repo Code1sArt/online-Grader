@@ -149,7 +149,9 @@ Subtask results now show group verdicts only. The judge stops each group at its 
 
 ## Submission history and score resets
 
-Admin มีเมนู “ล้างประวัติและคะแนน” ที่ `/admin/submissions/clear` สำหรับลบคำตอบ โค้ด ผลตรวจ และคะแนนของผู้ใช้ทุกคนทั้งการฝึกและการแข่งขันอย่างถาวร ต้องยืนยันก่อนลบ และยกเลิกแล้วจะไม่ส่งคำขอ สมาชิก โจทย์ การแข่งขัน และผู้สมัครแข่งขันยังคงอยู่ ต้อง deploy API รุ่นที่รองรับ `DELETE /api/submissions/admin/all` พร้อม frontend; endpoint นี้อนุญาตเฉพาะ Admin และไม่ต้องเพิ่ม migration
+Admin มีเมนู “ล้างประวัติและคะแนน” ที่ `/admin/submissions/clear` สำหรับลบคำตอบ โค้ด ผลตรวจ และคะแนนของผู้ใช้ทุกคนทั้งการฝึกและการแข่งขันอย่างถาวร ต้องยืนยันก่อนลบ และยกเลิกแล้วจะไม่ส่งคำขอ สมาชิก โจทย์ การแข่งขัน และผู้สมัครแข่งขันยังคงอยู่ ต้อง deploy API รุ่นที่รองรับ `DELETE /api/submissions/admin/all` พร้อม frontend; endpoint นี้อนุญาตเฉพาะ Admin
+
+การล้างเพิ่ม `submissionDraftVersion` ใน transaction เดียวกับการลบคำตอบ Frontend ล้าง Local storage เฉพาะ `nr-draft:` และเริ่มหน้าแก้คำตอบใหม่เมื่อเวอร์ชันเปลี่ยน ตรวจ `/settings` เมื่อเปิดหน้า เปลี่ยนหน้า กลับเข้าแท็บ และทุก 30 วินาที เครื่องอื่นที่ offline จะล้างเมื่อเชื่อมต่อได้อีกครั้ง รองรับการแจ้งแท็บอื่นในเครื่องเดียวกันและป้องกัน editor เก่าเขียนฉบับร่างกลับ ฉบับร่างใน Playground และข้อมูลเว็บไซต์อื่นไม่ถูกลบ ต้อง apply migration `20261012000000_submission_draft_version` และ regenerate Prisma client ก่อน deploy API
 
 The submissions page groups attempts by problem and opens paginated history (50 attempts per page). Admins use `/admin/submissions` to browse problems, respondents ranked by highest active score, each respondent's history, and individual source code. Score resets apply to one problem or one respondent within that problem, including competition submissions. Reset attempts retain their original verdict and code, display zero points, and no longer contribute to leaderboards. New attempts can earn points normally; in-flight judging cannot remove a reset marker.
 
