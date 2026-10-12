@@ -149,6 +149,8 @@ Subtask results now show group verdicts only. The judge stops each group at its 
 
 ## Submission history and score resets
 
+Admin มีเมนู “ล้างประวัติและคะแนน” ที่ `/admin/submissions/clear` สำหรับลบคำตอบ โค้ด ผลตรวจ และคะแนนของผู้ใช้ทุกคนทั้งการฝึกและการแข่งขันอย่างถาวร ต้องยืนยันก่อนลบ และยกเลิกแล้วจะไม่ส่งคำขอ สมาชิก โจทย์ การแข่งขัน และผู้สมัครแข่งขันยังคงอยู่ ต้อง deploy API รุ่นที่รองรับ `DELETE /api/submissions/admin/all` พร้อม frontend; endpoint นี้อนุญาตเฉพาะ Admin และไม่ต้องเพิ่ม migration
+
 The submissions page groups attempts by problem and opens paginated history (50 attempts per page). Admins use `/admin/submissions` to browse problems, respondents ranked by highest active score, each respondent's history, and individual source code. Score resets apply to one problem or one respondent within that problem, including competition submissions. Reset attempts retain their original verdict and code, display zero points, and no longer contribute to leaderboards. New attempts can earn points normally; in-flight judging cannot remove a reset marker.
 
 Deploy the API and apply its `20261009090000_submission_score_reset` migration before releasing this frontend. SweetAlert2 confirms user-initiated writes, deleting records, replacing draft code, and signing out. Cancelled operations send no request; automatic session expiry still clears the expired session immediately.

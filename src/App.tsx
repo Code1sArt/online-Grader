@@ -23,6 +23,9 @@ const CreateCompetition = lazy(() =>
   import('./pages/AdminCompetitions').then((m) => ({ default: m.CreateCompetition })),
 );
 const AdminSettings = lazy(() => import('./pages/AdminSettings').then((m) => ({ default: m.AdminSettings })));
+const AdminClearSubmissions = lazy(() =>
+  import('./pages/AdminClearSubmissions').then((m) => ({ default: m.AdminClearSubmissions })),
+);
 
 export default function App() {
   return (
@@ -54,6 +57,7 @@ function AppRoutes() {
             <Route path="admin/competitions" element={<AdminCompetitions />} />
             <Route path="admin/competitions/new" element={<CreateCompetition />} />
             <Route path="admin/submissions" element={<SubmissionOverview admin />} />
+            <Route path="admin/submissions/clear" element={<AdminClearSubmissions />} />
             <Route path="admin/submissions/problems/:problemId" element={<AdminRespondents />} />
             <Route
               path="admin/submissions/problems/:problemId/users/:userId"

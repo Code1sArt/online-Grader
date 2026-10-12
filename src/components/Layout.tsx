@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   SquareTerminal,
   Trophy,
+  Trash2,
   X,
 } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
@@ -75,7 +76,13 @@ export function Layout() {
                 <Trophy size={20} />
                 จัดการแข่งขัน
               </NavLink>
-              <NavLink to="/admin/submissions" onClick={() => setOpen(false)}>
+              <NavLink
+                to="/admin/submissions"
+                className={({ isActive }) =>
+                  isActive && location.pathname !== '/admin/submissions/clear' ? 'active' : ''
+                }
+                onClick={() => setOpen(false)}
+              >
                 <History size={20} />
                 คำตอบของผู้เรียน
               </NavLink>
@@ -86,6 +93,10 @@ export function Layout() {
               <NavLink to="/admin/settings" onClick={() => setOpen(false)}>
                 <SlidersHorizontal size={20} />
                 ตั้งค่าระบบ
+              </NavLink>
+              <NavLink to="/admin/submissions/clear" onClick={() => setOpen(false)}>
+                <Trash2 size={20} />
+                ล้างประวัติและคะแนน
               </NavLink>
             </>
           )}

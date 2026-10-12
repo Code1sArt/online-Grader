@@ -52,6 +52,8 @@ beforeEach(() => {
     vi.fn(async (url: string, options: RequestInit = {}) => {
       const path = url.replace('/api', '').split('?')[0];
       requests.push({ path, options });
+      if (path === '/submissions/admin/all' && options.method === 'DELETE')
+        return new Response(JSON.stringify({ deletedCount: 2 }), { status: 200 });
       if (path === '/problems' && failProblems)
         return new Response(JSON.stringify({ message: 'API unavailable' }), { status: 503 });
       const payload =
@@ -284,6 +286,33 @@ describe('NR Grader user workflows', () => {
     expect(Swal.fire).toHaveBeenCalledWith(
       expect.objectContaining({ text: expect.stringContaining('ของผู้เรียนคนนี้') }),
     );
+  });
+  it('opens the clear-all admin menu and confirms permanent deletion', async () => {
+    role = 'ADMIN';
+    mount('/admin/submissions');
+    await userEvent.click(await screen.findByRole('link', { name: 'ล้างประวัติและคะแนน' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('รวม 2 คำตอบ');
+    expect(requests.filter((row) => row.path === '/submissions/admin/all')).toEqual([
+      expect.objectContaining({ options: expect.objectContaining({ method: 'DELETE' }) }),
+    ]);
+    expect(Swal.fire).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('กู้คืนไม่ได้') }),
+    );
+  });
+  it('sends no deletion when clearing all submissions is cancelled', async () => {
+    role = 'ADMIN';
+    vi.mocked(Swal.fire).mockResolvedValueOnce({ isConfirmed: false, isDenied: false, isDismissed: true });
+    mount('/admin/submissions/clear');
+    await userEvent.click(await screen.findByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' }));
+    expect(requests.some((row) => row.path === '/submissions/admin/all')).toBe(false);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+  it('denies the clear-all page and menu to regular users', async () => {
+    mount('/admin/submissions/clear');
+    expect(await screen.findByRole('heading', { name: 'คลังโจทย์', exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'ล้างประวัติและคะแนน' })).not.toBeInTheDocument();
+    expect(requests.some((row) => row.path === '/submissions/admin/all')).toBe(false);
   });
   it('opens a respondents history and source code for admins', async () => {
     role = 'ADMIN';

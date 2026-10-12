@@ -1,5 +1,34 @@
 import { test, expect, type Page } from '@playwright/test';
 import { user, problem, submission, competition } from '../fixtures';
+test('admin clears all history only after confirmation', async ({ page }, info) => {
+  await mockApi(page, true);
+  let deletes = 0;
+  await page.route('**/api/submissions/admin/all', async (route) => {
+    expect(route.request().method()).toBe('DELETE');
+    deletes += 1;
+    await route.fulfill({ json: { deletedCount: 2 } });
+  });
+  await page.goto('/admin/submissions');
+  if (info.project.name === 'mobile') await page.getByRole('button', { name: 'เปิดเมนู' }).click();
+  await page.getByRole('link', { name: 'ล้างประวัติและคะแนน' }).click();
+  const clear = page.getByRole('button', { name: 'ล้างประวัติการส่งและคะแนนทั้งหมด' });
+  await expect(clear).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: `test-results/clear-submissions-${info.project.name}.png`,
+    fullPage: true,
+    animations: 'disabled',
+  });
+  await clear.click();
+  await expect(page.locator('.swal2-popup')).toContainText('กู้คืนไม่ได้');
+  await page.locator('.swal2-cancel').click();
+  await expect(clear).toBeEnabled();
+  expect(deletes).toBe(0);
+  await clear.click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('status')).toContainText('รวม 2 คำตอบ');
+  expect(deletes).toBe(1);
+});
 async function confirmIfVisible(page: Page) {
   if (await page.locator('.swal2-popup').isVisible()) await page.locator('.swal2-confirm').click();
 }
